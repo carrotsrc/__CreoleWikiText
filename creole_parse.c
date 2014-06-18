@@ -72,13 +72,8 @@ void parse_ctl_tokens(struct cp_state *s)
 {
 	s->ctk[s->ntk] = '\0';
 	if(s->ctk[0] != '=' && ( s->lflags & CL_HEADER || ( s->ntk == 1 && (s->lflags & CL_STR) ) ) ) {
-		if((s->lflags & CL_TRAIL))
-			printf("{{{");
 
 		printf("%s", s->ctk);
-		
-		if((s->lflags & CL_TRAIL))
-			printf("}}}");
 
 		s->ntk = 0;
 		return;
@@ -147,12 +142,20 @@ void parse_ctl_x52(struct cp_state *s)
 /* handle = */
 void parse_ctl_x76(struct cp_state *s)
 {
+	if(s->lflags == CL_CTL) {
+		s->inc_header = s->ntk;
+		printf("<h%d>", s->inc_header);
+		s->lflags ^= CL_OPEN_HEADER;
+		return;
+	}
+
 	if((s->lflags & CL_HEADER) && ((s->lflags) & CL_STR) && (s->lflags & CL_TRAIL))
 		return;
 
 	printf("%s", s->ctk);
 }
 
+/* handle / */
 void parse_ctl_x2f(struct cp_state *s)
 {
 	if(s->lflags&CL_STR) {
@@ -225,7 +228,6 @@ void parse_str_tokens(char ch, struct cp_state *s)
 
 	if(( s->lflags & CL_OPEN_HEADER)) {
 		/* the control tokens opened a header */
-		printf("<h%d>", s->inc_header);
 		s->lflags ^= CL_OPEN_HEADER;
 		s->lflags ^= CL_HEADER; /* the rest is header mode */
 	}
