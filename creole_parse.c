@@ -31,8 +31,9 @@ void switch_ctl_tokens(char, struct cp_state*);
 void parse_str_tokens(char, struct cp_state*);
 void parse_ctl_tokens(struct cp_state*);
 
-void parse_ctl_x52(struct cp_state*); /* '*' */
-void parse_ctl_x76(struct cp_state*);
+void parse_ctl_x2f(struct cp_state*); /* / */
+void parse_ctl_x52(struct cp_state*); /* * */
+void parse_ctl_x76(struct cp_state*); /* = */ 
 
 
 void creole_parse(char *text)
@@ -78,6 +79,8 @@ void parse_ctl_tokens(struct cp_state *s)
 		
 		if((s->lflags & CL_TRAIL))
 			printf("}}}");
+
+		s->ntk = 0;
 		return;
 	}
 
@@ -89,12 +92,37 @@ void parse_ctl_tokens(struct cp_state *s)
 	case '=':
 		parse_ctl_x76(s);
 	break;
+
+	case '/':
+		parse_ctl_x2f(s);
+	break;
 	}
+
+	s->ntk = 0;
 }
 
 /* handle * */
 void parse_ctl_x52(struct cp_state *s)
 {
+	if(s->lflags&CL_STR) {
+		/* in string mode */
+		unsigned short f = 0;
+		while(s->ntk > 0) {
+			if(++f == 2) {
+				if(s->gflags & CG_BOLD)
+					printf("</strong>");
+				else
+					printf("<strong>");
+
+				s->gflags ^= CG_BOLD;
+				f = 0;
+			}
+			s->ntk--;
+		}
+		if(f > 0)
+			printf("*");
+
+	} else
 	if((s->gflags & CG_UL) && !((s->lflags) & CL_STR)) {
 		if(s->inc_list < s->ntk) {
 			s->inc_list = s->ntk;
@@ -125,12 +153,35 @@ void parse_ctl_x76(struct cp_state *s)
 	printf("%s", s->ctk);
 }
 
+void parse_ctl_x2f(struct cp_state *s)
+{
+	if(s->lflags&CL_STR) {
+		/* in string mode */
+		unsigned short f = 0;
+		while(s->ntk > 0) {
+			if(++f == 2) {
+				if(s->gflags & CG_ITALIC)
+					printf("</em>");
+				else
+					printf("<em>");
+
+				s->gflags ^= CG_ITALIC;
+				f = 0;
+			}
+			s->ntk--;
+		}
+		if(f > 0)
+			printf("/");
+
+	}
+}
+
 void parse_line(char *line, int len, struct cp_state *s)
 {
 	int i = 0;
 	char ch = '\0';
 	s->ctk = malloc(sizeof(char)<<5);
-	s->lflags = 0;
+	s->lflags = CL_CTL; /* flag control mode */
 	s->inc_header = 0;
 
 	while((ch = line[i++]) != '\0') {
@@ -161,15 +212,15 @@ void parse_line(char *line, int len, struct cp_state *s)
 
 void parse_str_tokens(char ch, struct cp_state *s)
 {
-	if(!(s->lflags & CL_STR)) {
+	if((s->lflags & CL_CTL) && !(s->lflags & CL_STR)) {
 		if(s->ntk) {
 			/* parse preceeding control tokens */
 			parse_ctl_tokens(s);
 			s->ntk = 0;
 		}
 
-		/* flag in string mode */
-		s->lflags ^= CL_STR;
+		/* flag in string mode, out of control mode */
+		s->lflags ^= CL_CTL | CL_STR;
 	}
 
 	if(( s->lflags & CL_OPEN_HEADER)) {
@@ -188,84 +239,20 @@ void parse_str_tokens(char ch, struct cp_state *s)
 
 void switch_ctl_tokens(char ch, struct cp_state *s)
 {
+	if(ch != s->ctk[s->ntk-1]) {
+		parse_ctl_tokens(s);
+		s->ntk = 0;
+	}
+
 	switch(ch) {
 	case ' ':
-		if(!( s->lflags & CL_STR )) {
-			if(s->ntk) {
-				parse_ctl_tokens(s);
-				s->ntk = 0;
-			}
+		if(!(s->lflags & CL_STR))
 			break;
-		}
 
 		printf(" ");
 	break;
-
-	case '\t':
-		if(!( s->lflags & CL_STR))
-			break;
-
-		printf("%c", ch);
-	break;
-
-	case '=':
-		if(!( s->lflags & CL_STR)) {
-			/* before any lines */
-			if(!( s->lflags & CL_OPEN_HEADER))
-				s->lflags ^= CL_OPEN_HEADER;
-
-			if(( s->lflags & CL_OPEN_HEADER))
-				(s->inc_header)++;
-			break;
-		}
-
+	default:
 		s->ctk[s->ntk++] = ch;
-	break;
-
-	case '/':
-		if(s->ctk[s->ntk-1] == '/' && !(s->lflags & CL_HEADER) ) {
-			if( ( s->gflags & CG_ITALIC) )
-				printf("</i>");
-			else
-				printf("<i>");
-
-			s->gflags ^= CG_ITALIC;
-			s->ntk = 0;
-			break;
-		}
-
-		s->ctk[s->ntk++] = ch;
-
-	break;
-
-	case '*':
-		if( s->lflags & CL_STR ) {
-			if(s->ctk[s->ntk-1] == '*'  && !(s->lflags & CL_HEADER)) {
-				if( (s->gflags & CG_BOLD) )
-					printf("</b>");
-				else
-					printf("<b>");
-
-				s->gflags ^= CG_BOLD;
-				s->ntk = 0;
-				break;
-			}
-
-			if(s->lflags & CL_HEADER) {
-				printf("%c", ch);
-				s->ntk = 0;
-			}
-			s->ctk[s->ntk++] = ch;
-		}
-		else {
-			if(s->ctk[s->ntk-1] != ch) {
-				s->ctk[s->ntk] = '\0';
-				printf("%s", s->ctk);
-				s->ntk = 0;
-			}
-			s->ctk[s->ntk++] = ch;
-		}
-
 	break;
 	}
 }
