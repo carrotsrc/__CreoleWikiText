@@ -104,8 +104,8 @@ void parse_ctl_tokens(struct cp_state *s)
 /* handle * */
 void parse_ctl_x52(struct cp_state *s)
 {
-	if(s->lflags&CL_STR) {
-		/* in string mode */
+	if(s->lflags&CL_STR || !(s->lflags&(CL_STR|CL_CTL))) {
+		/* in string mode or space terminated control mode */
 		unsigned short f = 0;
 		while(s->ntk > 0) {
 			if(++f == 2) {
@@ -126,11 +126,11 @@ void parse_ctl_x52(struct cp_state *s)
 	if((s->gflags & CG_UL) && !((s->lflags) & CL_STR)) {
 		if(s->inc_list < s->ntk) {
 			s->inc_list = s->ntk;
-			printf("<ul>");
+			printf("<ul>\n");
 		} else 
 		if(s->inc_list > s->ntk) {
 			s->inc_list = s->ntk;
-			printf("</ul>");
+			printf("</ul>\n");
 		}
 		printf("<li>");
 	} else
@@ -138,7 +138,7 @@ void parse_ctl_x52(struct cp_state *s)
 		if(s->ntk == 1) {
 			(s->gflags) ^= CG_UL;
 			s->inc_list = s->ntk;
-			printf("<ul>");
+			printf("<ul>\n");
 			printf("<li>");
 		}
 	}
@@ -205,14 +205,14 @@ void parse_line(char *line, int len, struct cp_state *s)
 		printf("</h%d>", s->inc_header);
 
 	if(s->gflags & CG_UL)
-		printf("</li>");
+		printf("</li>\n");
 
 	printf("\n");
 }
 
 void parse_str_tokens(char ch, struct cp_state *s)
 {
-	if((s->lflags & CL_CTL) && !(s->lflags & CL_STR)) {
+	if(!(s->lflags&(CL_CTL|CL_STR)) || (s->lflags & CL_CTL) && !(s->lflags & CL_STR)) {
 		if(s->ntk) {
 			/* parse preceeding control tokens */
 			parse_ctl_tokens(s);
@@ -239,13 +239,16 @@ void parse_str_tokens(char ch, struct cp_state *s)
 
 void switch_ctl_tokens(char ch, struct cp_state *s)
 {
-	if(ch != s->ctk[s->ntk-1]) {
+	if(s->ntk > 0 && ch != s->ctk[s->ntk-1]) {
 		parse_ctl_tokens(s);
 		s->ntk = 0;
 	}
 
 	switch(ch) {
 	case ' ':
+		if(s->lflags & CL_CTL)
+			s->lflags ^= CL_CTL;
+
 		if(!(s->lflags & CL_STR))
 			break;
 

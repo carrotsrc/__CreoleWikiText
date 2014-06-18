@@ -6,11 +6,13 @@
 ==H2 **No Formating**==
 ===H3 No Trails======
 
-this text is ///Italic////// and this **Text
+this text is ///Italic// and this **Text
 is bold***
 
+this should be double italic ////
+
 *L1 1
-*L1 2
-** L2 1
-**L2 2
+* L1 2
+** **L2** 1
+** L2 2
 *L1 3
