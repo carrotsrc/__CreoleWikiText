@@ -35,7 +35,9 @@
 #define CL_HEADER 16
 #define CL_LIST 32
 
+#define CL_AHREF 64
+#define CL_ATITLE 128
 
-void creole_parse(char *);
+void creole_parse(char *, char *);
 
 #endif

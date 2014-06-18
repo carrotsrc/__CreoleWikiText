@@ -18,7 +18,9 @@ not horizontal:
 not horizontal:
 abc----
 
+not horizontal - needs fixing:
 ----hfhf
+
 this should be open-close italic ////
 this should be //**italic and bold**//
 this should - hypenate
@@ -28,3 +30,9 @@ this should - hypenate
 ***L3 1
 ** L2 2
 *L1 3
+
+Links:
+[ No link]
+[[YellowLink]]
+[[BlueLink|Link Text]]
+[[http://www.carrotsrc.org|Carrotsrc.org]]

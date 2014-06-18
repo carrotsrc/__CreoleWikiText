@@ -20,13 +20,18 @@ int main(int argc, char *argv[])
 	char *text = NULL;
 
 	FILE *fp = fopen("test.cre", "r");
+	if(fp == NULL) {
+		fprintf(stderr, "Failed to open test file\n");
+		exit(EXIT_FAILURE);
+	}
 	fseek(fp, 0, SEEK_END);
 	sz = ftell(fp);
 	rewind(fp);
 	text = malloc((sizeof(char)*sz)+1);
 	fread(text, sz, 1, fp);
 
-	creole_parse(text);
+	creole_parse(text, "http://wiki");
 	printf("\n\n");
-	return 0;
+
+	exit(EXIT_SUCCESS);
 }
