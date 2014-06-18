@@ -32,6 +32,7 @@ void parse_str_tokens(char, struct cp_state*);
 void parse_ctl_tokens(struct cp_state*);
 
 void parse_ctl_x2f(struct cp_state*); /* / */
+void parse_ctl_x2d(struct cp_state*); /* - */
 void parse_ctl_x52(struct cp_state*); /* * */
 void parse_ctl_x76(struct cp_state*); /* = */ 
 
@@ -90,6 +91,10 @@ void parse_ctl_tokens(struct cp_state *s)
 
 	case '/':
 		parse_ctl_x2f(s);
+	break;
+
+	case '-':
+		parse_ctl_x2d(s);
 	break;
 	}
 
@@ -179,6 +184,16 @@ void parse_ctl_x2f(struct cp_state *s)
 	}
 }
 
+/* handle - */
+void parse_ctl_x2d(struct cp_state *s)
+{
+	short chk = CL_CTL|CL_TRAIL;
+	if((s->lflags&chk == chk) && s->ntk >= 4)
+		printf("<hr />");
+	else
+		printf("%s", s->ctk);
+}
+
 void parse_line(char *line, int len, struct cp_state *s)
 {
 	int i = 0;
@@ -189,7 +204,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 
 	while((ch = line[i++]) != '\0') {
 
-		if(ch>0x30 && ch != '=') {
+		if(ch>0x30  && ch < 0x7b && ch != '=') {
 			parse_str_tokens(ch, s);
 			continue;
 		}
@@ -208,7 +223,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 		printf("</h%d>", s->inc_header);
 
 	if(s->gflags & CG_UL)
-		printf("</li>\n");
+		printf("</li>");
 
 	printf("\n");
 }
@@ -223,7 +238,10 @@ void parse_str_tokens(char ch, struct cp_state *s)
 		}
 
 		/* flag in string mode, out of control mode */
-		s->lflags ^= CL_CTL | CL_STR;
+		if(s->lflags & CL_CTL)
+			s->lflags ^= CL_CTL;
+
+		s->lflags ^= CL_STR;
 	}
 
 	if(( s->lflags & CL_OPEN_HEADER)) {

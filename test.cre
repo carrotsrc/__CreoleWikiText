@@ -5,14 +5,26 @@
 =H1 //No Format//
 ==H2 **No Formating**==
 ===H3 No Trails======
+==H2 == H2======
 
 this text is ///Italic// and this **Text
 is bold***
+horizonal-
+----
 
-this should be double italic ////
+not horizontal:
+---
 
+not horizontal:
+abc----
+
+----hfhf
+this should be open-close italic ////
+this should be //**italic and bold**//
+this should - hypenate
 *L1 1
 * L1 2
 ** **L2** 1
+***L3 1
 ** L2 2
 *L1 3
