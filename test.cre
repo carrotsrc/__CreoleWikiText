@@ -1,0 +1,16 @@
+=Heading 1=
+==Heading 2==
+===Heading 3===
+
+=H1 //No Format//
+==H2 **No Formating**==
+===H3 No Trails======
+
+this text is //Italic// and this **Text
+is bold**
+
+*L1 1
+*L1 2
+** L2 1
+**L2 2
+*L1 3
