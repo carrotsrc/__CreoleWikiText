@@ -15,6 +15,12 @@
 */
 #include "creole_parse.h"
 
+#define CHKLF(f) s->lflags & f
+#define CHKGF(f) s->gflags & f
+
+#define TOGLF(f) s->lflags ^= f
+#define TOGGF(f) s->gflags ^= f
+
 struct cp_state {
 	/* control tokens */
 	char *ctk;
@@ -177,7 +183,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 		switch_ctl_tokens(ch, s);
 	}
 
-	if(s->nst > 0 && !( s->lflags&(CL_AHREF|CL_ATITLE) ) ) {
+	if(s->nst > 0 && !( CHKLF(CL_AHREF|CL_ATITLE) ) ) {
 		/* if stuff is there and not a link */
 		printbuf_stok(s);
 		s->nst = 0;
@@ -191,14 +197,14 @@ void parse_line(char *line, int len, struct cp_state *s)
 
 	free(s->ctk);
 
-	if(s->lflags & CL_HEADER) {
+	if(CHKLF(CL_HEADER)) {
 		char *tmp = malloc(8);
 		sprintf(tmp, "</h%d>", s->inc_header);
 		printbuf_str(s, tmp);
 		free(tmp);
 	}
 
-	if(s->gflags & CG_UL)
+	if(CHKGF(CG_UL))
 		printbuf_str(s, "</li>");
 
 	printbuf_str(s, "\n\0");
@@ -207,26 +213,26 @@ void parse_line(char *line, int len, struct cp_state *s)
 void parse_str_tokens(char ch, struct cp_state *s)
 {
 
-	if(!(s->lflags&(CL_CTL|CL_STR)) || (s->lflags & CL_CTL) && !(s->lflags & CL_STR)) {
+	if(!(CHKLF(CL_CTL|CL_STR)) || (CHKLF(CL_CTL)) && !(CHKLF(CL_STR)) ) {
 		if(s->nct) {
 			/* parse preceeding control tokens */
 			parse_ctl_tokens(s);
 			s->nct = 0;
 		}
 
-		if((s->gflags & CG_UL) && !(s->lflags & CL_LIST)) {
+		if( (CHKGF(CG_UL)) && !(CHKLF(CL_LIST)) ) {
 			printbuf_str(s, "</ul>\n");
 			s->gflags ^= CG_UL;
 		}
 			
 		/* flag in string mode, out of control mode */
-		if(s->lflags & CL_CTL)
+		if(CHKLF(CL_CTL))
 			s->lflags ^= CL_CTL;
 
 		s->lflags ^= CL_STR;
 	}
 
-	if(( s->lflags & CL_OPEN_HEADER)) {
+	if( CHKLF(CL_OPEN_HEADER) ) {
 		/* the control tokens opened a header */
 		s->lflags ^= CL_OPEN_HEADER;
 		s->lflags ^= CL_HEADER; /* the rest is header mode */
@@ -242,7 +248,7 @@ void parse_str_tokens(char ch, struct cp_state *s)
 
 void switch_ctl_tokens(char ch, struct cp_state *s)
 {
-	if(s->nst > 0 && !(s->lflags&(CL_AHREF|CL_ATITLE)) ) {
+	if(s->nst > 0 && !(CHKLF(CL_AHREF|CL_ATITLE)) ) {
 
 		printbuf_stok(s);
 		s->nst = 0;
@@ -256,14 +262,14 @@ void switch_ctl_tokens(char ch, struct cp_state *s)
 
 	switch(ch) {
 	case ' ':
-		if(s->lflags & CL_CTL)
+		if(CHKLF(CL_CTL))
 			s->lflags ^= CL_CTL;
 
-		if(s->lflags & CL_ATITLE) {
+		if(CHKLF(CL_ATITLE)) {
 			s->stk[s->nst++] = ' ';
 			break;
 		}
-		if(!(s->lflags & CL_STR))
+		if(!(CHKLF(CL_STR)))
 			break;
 
 		printbuf_str(s, " ");
