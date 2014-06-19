@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 {
 	unsigned int sz = 0;
 	char *text = NULL;
-	const char *host = "http://wiki/";
+	char *host = "http://wiki/";
 
 	FILE *fp = fopen(TEST_FILE, "r");
 	if(fp == NULL) {

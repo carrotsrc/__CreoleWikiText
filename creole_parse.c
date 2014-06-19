@@ -18,23 +18,23 @@
 struct cp_state {
 	/* control tokens */
 	char *ctk;
-	int nct;
+	unsigned int nct;
 
 	/* string tokens */
 	char *stk;
-	int nst;
+	unsigned int nst;
 
 
-	int inc_header; /* header incerement */
-	int inc_list; /* list increment */
-	int lflags; /* local/line flags */
-	int gflags; /* global flags */
+	unsigned int inc_header; /* header incerement */
+	unsigned int inc_list; /* list increment */
+	unsigned int lflags; /* local/line flags */
+	unsigned int gflags; /* global flags */
 	const char *host; /* wiki host */
 
 	/* output buffer */
 	char *fbuf;
-	int flen;
-	int fpos;
+	unsigned int flen;
+	unsigned int fpos;
 };
 
 
@@ -43,6 +43,8 @@ void parse_line(char*, int, struct cp_state*);
 static void switch_ctl_tokens(char, struct cp_state*);
 static void parse_str_tokens(char, struct cp_state*);
 static void parse_ctl_tokens(struct cp_state*);
+
+static int check_url(const char *, unsigned int);
 
 static void parse_ctl_x2d(struct cp_state*); /* - */
 static void parse_ctl_x2f(struct cp_state*); /* / */
@@ -71,7 +73,7 @@ void realloc_buf(struct cp_state *s)
 
 void printbuf_str(struct cp_state *s, char *str)
 {
-	short i = 0;
+	unsigned short i = 0;
 	while(str[i] != '\0') {
 		s->fbuf[s->fpos] = str[i++];
 		if(++s->fpos == s->flen)
@@ -94,7 +96,7 @@ void printbuf_ctok(struct cp_state *s)
 	if((s->fpos+s->nct) >= s->flen)
 			realloc_buf(s);
 
-	for(short i = 0; i < s->nct; i++)
+	for(unsigned short i = 0; i < s->nct; i++)
 		s->fbuf[s->fpos++] = s->ctk[i];
 
 }
@@ -104,15 +106,15 @@ void printbuf_stok(struct cp_state *s)
 	if((s->fpos+s->nst) >= s->flen)
 			realloc_buf(s);
 
-	for(short i = 0; i < s->nst; i++)
+	for(unsigned short i = 0; i < s->nst; i++)
 		s->fbuf[s->fpos++] = s->stk[i];
 
 }
 
 char *creole_parse(char *text, const char *host, int len)
 {
-	char ch = '\0';
-	int i = 0, flags = 0;
+	unsigned char ch = '\0';
+	unsigned int i = 0, flags = 0;
 	struct cp_state state;
 
 	/* initialise the machine */
@@ -417,7 +419,7 @@ void parse_ctl_x2f(struct cp_state *s)
 /* handle - */
 void parse_ctl_x2d(struct cp_state *s)
 {
-	short chk = CL_CTL|CL_TRAIL;
+	unsigned short chk = CL_CTL|CL_TRAIL;
 	if((s->lflags&chk == chk) && s->nct >= 4)
 		printbuf_str(s, "<hr />");
 	else
@@ -428,7 +430,7 @@ void parse_ctl_x2d(struct cp_state *s)
 void parse_ctl_x5b(struct cp_state *s)
 {
 	if(s->nct > 1 && !(s->lflags & (CL_AHREF|CL_ATITLE))) {
-		short f = s->nct - 2;
+		unsigned short f = s->nct - 2;
 		
 		printbuf_str(s, "<a href=\"");
 		while(f-- > 0)
@@ -451,7 +453,7 @@ void parse_ctl_x5d(struct cp_state *s)
 		printbuf_ctok(s);
 
 	if(s->nct > 1) {
-		short f = s->nct - 2;
+		unsigned short f = s->nct - 2;
 		if(s->lflags & CL_AHREF) {
 			/* it's a single style internal link */
 			char *tmp = malloc(sizeof(char*)*(strlen(s->host)+s->nst+1));
@@ -489,12 +491,26 @@ void parse_ctl_x5d(struct cp_state *s)
 /* handle | */
 void parse_ctl_x7c(struct cp_state *s)
 {
-	
 	if(!(s->lflags & CL_AHREF))
 		printbuf_ctok(s);
 
-	printbuf_str(s,"lnk\"");
 	s->lflags ^= CL_AHREF;
 	s->lflags ^= CL_ATITLE;
+
+	if(s->nst < 8 || !check_url(s->stk, s->nst)) {
+		char *tmp = malloc(sizeof(char*)*(strlen(s->host)+s->nst+1));
+		s->stk[s->nst] = '\0';
+		sprintf(tmp, "%s%s", s->host, s->stk);
+		printbuf_str(s, tmp);
+		printbuf_str(s, "\">");
+	} else {
+		printbuf_stok(s);
+		printbuf_str(s, "\"");
+	}
 	s->nst = 0;
+}
+
+int check_url(const char *str, unsigned int len)
+{
+	return 0;
 }
