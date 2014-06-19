@@ -19,6 +19,7 @@ int main(int argc, char *argv[])
 {
 	unsigned int sz = 0;
 	char *text = NULL;
+	const char *host = "http://wiki/";
 
 	FILE *fp = fopen(TEST_FILE, "r");
 	if(fp == NULL) {
@@ -32,7 +33,7 @@ int main(int argc, char *argv[])
 	fread(text, sz, 1, fp);
 	char *fbuf = NULL;
 
-	creole_parse(text, "http://wiki/", &fbuf, sz);
+	fbuf = creole_parse(text, host, sz);
 	printf("%s", fbuf);
 	printf("\n\n");
 

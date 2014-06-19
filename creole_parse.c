@@ -29,7 +29,7 @@ struct cp_state {
 	int inc_list; /* list increment */
 	int lflags; /* local/line flags */
 	int gflags; /* global flags */
-	char *host; /* wiki host */
+	const char *host; /* wiki host */
 
 	/* output buffer */
 	char *fbuf;
@@ -57,27 +57,33 @@ static void printbuf_ctok(struct cp_state*);
 static void printbuf_stok(struct cp_state*);
 static void printbuf_ch(struct cp_state*, char);
 
+static void realloc_buf(struct cp_state*);
+
+void realloc_buf(struct cp_state *s)
+{
+	s->flen = s->flen+(s->flen>>1);
+	char *tmp = (char*)realloc((void*)(s->fbuf),  sizeof(char)*(s->flen+1));
+	if(tmp == NULL)
+		exit(EXIT_FAILURE);
+	s->fbuf = tmp;
+	tmp = NULL;
+}
+
 void printbuf_str(struct cp_state *s, char *str)
 {
 	short i = 0;
 	while(str[i] != '\0') {
 		s->fbuf[s->fpos] = str[i++];
-		if(++s->fpos == s->flen) {
-			s->flen = s->flen+(s->flen>>1);
-			if(realloc(s->fbuf, sizeof(char)*(s->flen+1)) == NULL)
-				exit(EXIT_FAILURE);
-		}
+		if(++s->fpos == s->flen)
+			realloc_buf(s);
 	}
 
 }
 
 void printbuf_ch(struct cp_state *s, char ch)
 {
-	if((s->fpos+1) >= s->flen) {
-		s->flen = s->flen+(s->flen>>1);
-		if(realloc(s->fbuf, sizeof(char)*(s->flen+1)) == NULL)
-			exit(EXIT_FAILURE);
-	}
+	if((s->fpos+1) >= s->flen)
+			realloc_buf(s);
 
 	s->fbuf[s->fpos++] = ch;
 
@@ -85,11 +91,8 @@ void printbuf_ch(struct cp_state *s, char ch)
 
 void printbuf_ctok(struct cp_state *s)
 {
-	if((s->fpos+s->nct) >= s->flen) {
-		s->flen = s->flen+(s->flen>>1);
-		if(realloc(s->fbuf, sizeof(char)*(s->flen+1)) == NULL)
-			exit(EXIT_FAILURE);
-	}
+	if((s->fpos+s->nct) >= s->flen)
+			realloc_buf(s);
 
 	for(short i = 0; i < s->nct; i++)
 		s->fbuf[s->fpos++] = s->ctk[i];
@@ -98,18 +101,15 @@ void printbuf_ctok(struct cp_state *s)
 
 void printbuf_stok(struct cp_state *s)
 {
-	if((s->fpos+s->nst) >= s->flen) {
-		s->flen = s->flen+(s->flen>>1);
-		if(realloc(s->fbuf, sizeof(char)*(s->flen+1)) == NULL)
-			exit(EXIT_FAILURE);
-	}
+	if((s->fpos+s->nst) >= s->flen)
+			realloc_buf(s);
 
 	for(short i = 0; i < s->nst; i++)
 		s->fbuf[s->fpos++] = s->stk[i];
 
 }
 
-void creole_parse(char *text, const char *host, char** out, int len)
+char *creole_parse(char *text, const char *host, int len)
 {
 	char ch = '\0';
 	int i = 0, flags = 0;
@@ -123,9 +123,7 @@ void creole_parse(char *text, const char *host, char** out, int len)
 	state.gflags = 0;
 	state.host = host;
 	state.flen = len+(len>>1);
-	*out = malloc(sizeof(char)*(state.flen+1));
-
-	state.fbuf = *out;
+	state.fbuf = malloc(sizeof(char)*(state.flen+1));
 
 	/* new lines seem to be a critical token
 	 * at the moment. Get each new line */
@@ -147,7 +145,8 @@ void creole_parse(char *text, const char *host, char** out, int len)
 	if(state.gflags & CG_UL)
 		printbuf_str(&state, "</ul>");
 
-	state.fbuf[state.fpos] = '\0';
+	printbuf_str(&state, "\n\0");
+	return state.fbuf;
 }
 
 void parse_line(char *line, int len, struct cp_state *s)
@@ -200,7 +199,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 	if(s->gflags & CG_UL)
 		printbuf_str(s, "</li>");
 
-	printbuf_str(s, "\n");
+	printbuf_str(s, "\n\0");
 }
 
 void parse_str_tokens(char ch, struct cp_state *s)
@@ -258,6 +257,10 @@ void switch_ctl_tokens(char ch, struct cp_state *s)
 		if(s->lflags & CL_CTL)
 			s->lflags ^= CL_CTL;
 
+		if(s->lflags & CL_ATITLE) {
+			s->stk[s->nst++] = ' ';
+			break;
+		}
 		if(!(s->lflags & CL_STR))
 			break;
 
@@ -432,8 +435,8 @@ void parse_ctl_x5b(struct cp_state *s)
 			printbuf_str(s, "[");
 
 		s->lflags ^= CL_AHREF;
-
 		s->nct = 0;
+
 		return;
 	}
 
@@ -490,7 +493,7 @@ void parse_ctl_x7c(struct cp_state *s)
 	if(!(s->lflags & CL_AHREF))
 		printbuf_ctok(s);
 
-	printbuf_str(s,"lnk");
+	printbuf_str(s,"lnk\"");
 	s->lflags ^= CL_AHREF;
 	s->lflags ^= CL_ATITLE;
 	s->nst = 0;

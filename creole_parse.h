@@ -38,6 +38,6 @@
 #define CL_AHREF 64
 #define CL_ATITLE 128
 
-void creole_parse(char*, const char*, char**, int);
+char *creole_parse(char*, const char*, int);
 
 #endif
