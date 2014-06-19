@@ -16,40 +16,115 @@
 #include "creole_parse.h"
 
 struct cp_state {
+	/* control tokens */
 	char *ctk;
-	int ntk;
-	int inc_header;
-	int inc_list;
-	int lflags;
-	int gflags;
-	char *host;
+	int nct;
+
+	/* string tokens */
+	char *stk;
+	int nst;
+
+
+	int inc_header; /* header incerement */
+	int inc_list; /* list increment */
+	int lflags; /* local/line flags */
+	int gflags; /* global flags */
+	char *host; /* wiki host */
+
+	/* output buffer */
+	char *fbuf;
+	int flen;
+	int fpos;
 };
 
 
 void parse_line(char*, int, struct cp_state*);
 
-void switch_ctl_tokens(char, struct cp_state*);
-void parse_str_tokens(char, struct cp_state*);
-void parse_ctl_tokens(struct cp_state*);
+static void switch_ctl_tokens(char, struct cp_state*);
+static void parse_str_tokens(char, struct cp_state*);
+static void parse_ctl_tokens(struct cp_state*);
 
-void parse_ctl_x2f(struct cp_state*); /* / */
-void parse_ctl_x2d(struct cp_state*); /* - */
-void parse_ctl_x52(struct cp_state*); /* * */
-void parse_ctl_x5b(struct cp_state*); /* [ */ 
-void parse_ctl_x76(struct cp_state*); /* = */ 
+static void parse_ctl_x2f(struct cp_state*); /* / */
+static void parse_ctl_x2d(struct cp_state*); /* - */
+static void parse_ctl_x52(struct cp_state*); /* * */
+static void parse_ctl_x5b(struct cp_state*); /* [ */ 
+static void parse_ctl_x76(struct cp_state*); /* = */ 
 
-void creole_parse(char *text, char *host)
+static void printbuf_str(struct cp_state*, char*);
+static void printbuf_ctok(struct cp_state*);
+static void printbuf_stok(struct cp_state*);
+static void printbuf_ch(struct cp_state*, char);
+
+void printbuf_str(struct cp_state *s, char *str)
 {
-	printf("%s\n\n-----\n\n", text);
+	short i = 0;
+	while(str[i] != '\0') {
+		s->fbuf[s->fpos] = str[i++];
+		if(++s->fpos == s->flen) {
+			s->flen = s->flen+(s->flen>>1);
+			if(realloc(s->fbuf, sizeof(char)*(s->flen+1)) == NULL)
+				exit(EXIT_FAILURE);
+		}
+	}
+
+}
+
+void printbuf_ch(struct cp_state *s, char ch)
+{
+	if((s->fpos+1) >= s->flen) {
+		s->flen = s->flen+(s->flen>>1);
+		if(realloc(s->fbuf, sizeof(char)*(s->flen+1)) == NULL)
+			exit(EXIT_FAILURE);
+	}
+
+	s->fbuf[s->fpos++] = ch;
+
+}
+
+void printbuf_ctok(struct cp_state *s)
+{
+	if((s->fpos+s->nct) >= s->flen) {
+		s->flen = s->flen+(s->flen>>1);
+		if(realloc(s->fbuf, sizeof(char)*(s->flen+1)) == NULL)
+			exit(EXIT_FAILURE);
+	}
+
+	for(short i = 0; i < s->nct; i++)
+		s->fbuf[s->fpos++] = s->ctk[i];
+
+}
+
+void printbuf_stok(struct cp_state *s)
+{
+	if((s->fpos+s->nst) >= s->flen) {
+		s->flen = s->flen+(s->flen>>1);
+		if(realloc(s->fbuf, sizeof(char)*(s->flen+1)) == NULL)
+			exit(EXIT_FAILURE);
+	}
+
+	for(short i = 0; i < s->nst; i++)
+		s->fbuf[s->fpos++] = s->stk[i];
+
+}
+
+void creole_parse(char *text, const char *host, char** out, int len)
+{
 	char ch = '\0';
 	int i = 0, flags = 0;
 	struct cp_state state;
-	state.ntk = 0;
+
+	/* initialise the machine */
+	state.nct = 0;
 	state.inc_header = 0;
 	state.inc_list = 0;
 	state.lflags = 0;
 	state.gflags = 0;
 	state.host = host;
+	state.flen = len+(len>>1);
+	*out = malloc(sizeof(char)*(state.flen+1));
+
+	state.fbuf = *out;
+
 	/* new lines seem to be a critical token
 	 * at the moment. Get each new line */
 	while(text[i] != '\0') {
@@ -66,19 +141,74 @@ void creole_parse(char *text, char *host)
 	if(i)
 		parse_line(text, i, &state);
 
-	
 	if(state.gflags & CG_UL)
-		printf("</ul>");
+		printbuf_str(&state, "</ul>");
+
+	state.fbuf[state.fpos] = '\0';
+}
+
+void parse_line(char *line, int len, struct cp_state *s)
+{
+	int i = 0;
+	char ch = '\0';
+
+	/* init control token buffer for line */
+	s->ctk = malloc(sizeof(char)<<5);
+	s->nct = 0;
+
+	/* init string token buffer for line */
+	s->stk = malloc(sizeof(char)*len);
+	s->nst = 0;
+
+
+	s->lflags = CL_CTL; /* flag control mode */
+	s->inc_header = 0;
+
+	while((ch = line[i++]) != '\0') {
+
+		if(ch>0x30  && ch < 0x7b && ch != '=') {
+
+			parse_str_tokens(ch, s);
+			continue;
+		}
+
+		switch_ctl_tokens(ch, s);
+	}
+
+	if(s->nst > 0) {
+		printbuf_stok(s);
+		s->nst = 0;
+	}
+
+	if(s->nct) {
+		s->lflags ^= CL_TRAIL;
+		parse_ctl_tokens(s);
+		s->nct = 0;
+	}
+
+	free(s->ctk);
+
+	if(s->lflags & CL_HEADER) {
+		char *tmp = malloc(8);
+		sprintf(tmp, "</h%d>", s->inc_header);
+		printbuf_str(s, tmp);
+		free(tmp);
+	}
+
+	if(s->gflags & CG_UL)
+		printbuf_str(s, "</li>");
+
+	printbuf_str(s, "\n");
 }
 
 void parse_ctl_tokens(struct cp_state *s)
 {
-	s->ctk[s->ntk] = '\0';
-	if(s->ctk[0] != '=' && ( s->lflags & CL_HEADER || ( s->ntk == 1 && (s->lflags & CL_STR) )) ) {
+	s->ctk[s->nct] = '\0';
+	if(s->ctk[0] != '=' && ( s->lflags & CL_HEADER || ( s->nct == 1 && (s->lflags & CL_STR) )) ) {
 
-		printf("%s", s->ctk);
+		printbuf_ctok(s);
 
-		s->ntk = 0;
+		s->nct = 0;
 		return;
 	}
 
@@ -104,7 +234,7 @@ void parse_ctl_tokens(struct cp_state *s)
 	break;
 	}
 
-	s->ntk = 0;
+	s->nct = 0;
 }
 
 /* handle * */
@@ -113,41 +243,41 @@ void parse_ctl_x52(struct cp_state *s)
 	if(s->lflags&CL_STR || !(s->lflags&(CL_STR|CL_CTL))) {
 		/* in string mode or space terminated control mode */
 		unsigned short f = 0;
-		while(s->ntk > 0) {
+		while(s->nct > 0) {
 			if(++f == 2) {
 				if(s->gflags & CG_BOLD)
-					printf("</strong>");
+					printbuf_str(s, "</strong>");
 				else
-					printf("<strong>");
+					printbuf_str(s, "<strong>");
 
 				s->gflags ^= CG_BOLD;
 				f = 0;
 			}
-			s->ntk--;
+			s->nct--;
 		}
 		if(f > 0)
-			printf("*");
+			printbuf_str(s, "*");
 
 	} else
 	if((s->gflags & CG_UL) && !((s->lflags) & CL_STR)) {
-		if(s->inc_list < s->ntk) {
-			s->inc_list = s->ntk;
-			printf("<ul>\n");
+		if(s->inc_list < s->nct) {
+			s->inc_list = s->nct;
+			printbuf_str(s, "<ul>\n");
 		} else 
-		if(s->inc_list > s->ntk) {
-			s->inc_list = s->ntk;
-			printf("</ul>\n");
+		if(s->inc_list > s->nct) {
+			s->inc_list = s->nct;
+			printbuf_str(s, "</ul>\n");
 		}
 
 		s->lflags ^= CL_LIST;
-		printf("<li>");
+		printbuf_str(s,"<li>");
 	} else
 	if(!(s->gflags & CG_UL) && !(s->lflags & CL_STR) ) {
-		if(s->ntk == 1) {
+		if(s->nct == 1) {
 			(s->gflags) ^= CG_UL;
-			s->inc_list = s->ntk;
-			printf("<ul>\n");
-			printf("<li>");
+			s->inc_list = s->nct;
+			printbuf_str(s, "<ul>\n");
+			printbuf_str(s, "<li>");
 			s->lflags ^= CL_LIST;
 		}
 	}
@@ -157,8 +287,13 @@ void parse_ctl_x52(struct cp_state *s)
 void parse_ctl_x76(struct cp_state *s)
 {
 	if(s->lflags == CL_CTL) {
-		s->inc_header = s->ntk;
-		printf("<h%d>", s->inc_header);
+		s->inc_header = s->nct;
+
+		char *tmp = malloc(8);
+		sprintf(tmp, "<h%d>", s->inc_header);
+		printbuf_str(s, tmp);
+
+		free(tmp);
 		s->lflags ^= CL_OPEN_HEADER;
 		return;
 	}
@@ -166,7 +301,7 @@ void parse_ctl_x76(struct cp_state *s)
 	if((s->lflags & CL_HEADER) && ((s->lflags) & CL_STR) && (s->lflags & CL_TRAIL))
 		return;
 
-	printf("%s", s->ctk);
+	printbuf_ctok(s);
 }
 
 /* handle / */
@@ -175,20 +310,20 @@ void parse_ctl_x2f(struct cp_state *s)
 	if(s->lflags&CL_STR) {
 		/* in string mode */
 		unsigned short f = 0;
-		while(s->ntk > 0) {
+		while(s->nct > 0) {
 			if(++f == 2) {
 				if(s->gflags & CG_ITALIC)
-					printf("</em>");
+					printbuf_str(s, "</em>");
 				else
-					printf("<em>");
+					printbuf_str(s, "<em>");
 
 				s->gflags ^= CG_ITALIC;
 				f = 0;
 			}
-			s->ntk--;
+			s->nct--;
 		}
 		if(f > 0)
-			printf("/");
+			printbuf_str(s, "/");
 
 	}
 }
@@ -197,80 +332,46 @@ void parse_ctl_x2f(struct cp_state *s)
 void parse_ctl_x2d(struct cp_state *s)
 {
 	short chk = CL_CTL|CL_TRAIL;
-	if((s->lflags&chk == chk) && s->ntk >= 4)
-		printf("<hr />");
+	if((s->lflags&chk == chk) && s->nct >= 4)
+		printbuf_str(s, "<hr />");
 	else
-		printf("%s", s->ctk);
+		printbuf_ctok(s);
 }
 
 /* handle [ */
 void parse_ctl_x5b(struct cp_state *s)
 {
-	if(s->ntk > 1 && !(s->lflags & (CL_AHREF|CL_ATITLE))) {
-		short f = s->ntk - 2;
+	if(s->nct > 1 && !(s->lflags & (CL_AHREF|CL_ATITLE))) {
+		short f = s->nct - 2;
 		
-		printf("<a href=\" ");
+		printbuf_str(s, "<a href=\" ");
 		while(f-- > 0)
-			printf("[");
+			printbuf_str(s, "[");
 
 		s->lflags ^= CL_AHREF;
 		return;
 	}
 
-	printf("%s", s->ctk);
+	printbuf_ctok(s);
 }
 
-void parse_line(char *line, int len, struct cp_state *s)
-{
-	int i = 0;
-	char ch = '\0';
-	s->ctk = malloc(sizeof(char)<<5);
-	s->lflags = CL_CTL; /* flag control mode */
-	s->inc_header = 0;
-
-	while((ch = line[i++]) != '\0') {
-
-		if(ch>0x30  && ch < 0x5b && ch != '=') {
-
-			parse_str_tokens(ch, s);
-			continue;
-		}
-
-		switch_ctl_tokens(ch, s);
-	}
-
-	if(s->ntk) {
-		s->lflags ^= CL_TRAIL;
-		parse_ctl_tokens(s);
-		s->ntk = 0;
-	}
-
-	free(s->ctk);
-	if(s->lflags & CL_HEADER)
-		printf("</h%d>", s->inc_header);
-
-	if(s->gflags & CG_UL)
-		printf("</li>");
-
-	printf("\n");
-}
 
 void parse_str_tokens(char ch, struct cp_state *s)
 {
 	if(s->lflags & CL_AHREF) {
-		printf("{{");
+		printbuf_str(s,"{{");
 		s->lflags ^= CL_AHREF;
 	}
 
 	if(!(s->lflags&(CL_CTL|CL_STR)) || (s->lflags & CL_CTL) && !(s->lflags & CL_STR)) {
-		if(s->ntk) {
+		if(s->nct) {
 			/* parse preceeding control tokens */
 			parse_ctl_tokens(s);
-			s->ntk = 0;
+			s->nct = 0;
 		}
 
 		if((s->gflags & CG_UL) && !(s->lflags & CL_LIST)) {
-			printf("</ul>\n");
+			printbuf_str(s, "</ul>\n");
 			s->gflags ^= CG_UL;
 		}
 			
@@ -287,18 +388,25 @@ void parse_str_tokens(char ch, struct cp_state *s)
 		s->lflags ^= CL_HEADER; /* the rest is header mode */
 	}
 
-	if(s->ntk) {
+	if(s->nct) {
 		parse_ctl_tokens(s);
-		s->ntk = 0;
+		s->nct = 0;
 	}
-	printf("%c", ch);
+
+	s->stk[s->nst++] = ch;
 }
 
 void switch_ctl_tokens(char ch, struct cp_state *s)
 {
-	if(s->ntk > 0 && ch != s->ctk[s->ntk-1]) {
+	if(s->nst > 0) {
+		printbuf_stok(s);
+		s->nst = 0;
+	}
+
+
+	if(s->nct > 0 && ch != s->ctk[s->nct-1]) {
 		parse_ctl_tokens(s);
-		s->ntk = 0;
+		s->nct = 0;
 	}
 
 	switch(ch) {
@@ -309,10 +417,10 @@ void switch_ctl_tokens(char ch, struct cp_state *s)
 		if(!(s->lflags & CL_STR))
 			break;
 
-		printf(" ");
+		printbuf_str(s, " ");
 	break;
 	default:
-		s->ctk[s->ntk++] = ch;
+		s->ctk[s->nct++] = ch;
 	break;
 	}
 }

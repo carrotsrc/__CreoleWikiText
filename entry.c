@@ -14,12 +14,13 @@
 * limitations under the License.
 */
 #include "creole_parse.h"
+#define TEST_FILE "/home/charlie/development/c/creole/test.cre"
 int main(int argc, char *argv[])
 {
 	unsigned int sz = 0;
 	char *text = NULL;
 
-	FILE *fp = fopen("test.cre", "r");
+	FILE *fp = fopen(TEST_FILE, "r");
 	if(fp == NULL) {
 		fprintf(stderr, "Failed to open test file\n");
 		exit(EXIT_FAILURE);
@@ -29,8 +30,10 @@ int main(int argc, char *argv[])
 	rewind(fp);
 	text = malloc((sizeof(char)*sz)+1);
 	fread(text, sz, 1, fp);
+	char *fbuf = NULL;
 
-	creole_parse(text, "http://wiki");
+	creole_parse(text, "http://wiki", &fbuf, sz);
+	printf("%s", fbuf);
 	printf("\n\n");
 
 	exit(EXIT_SUCCESS);
