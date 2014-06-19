@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	fread(text, sz, 1, fp);
 	char *fbuf = NULL;
 
-	creole_parse(text, "http://wiki", &fbuf, sz);
+	creole_parse(text, "http://wiki/", &fbuf, sz);
 	printf("%s", fbuf);
 	printf("\n\n");
 

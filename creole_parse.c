@@ -44,11 +44,13 @@ static void switch_ctl_tokens(char, struct cp_state*);
 static void parse_str_tokens(char, struct cp_state*);
 static void parse_ctl_tokens(struct cp_state*);
 
-static void parse_ctl_x2f(struct cp_state*); /* / */
 static void parse_ctl_x2d(struct cp_state*); /* - */
+static void parse_ctl_x2f(struct cp_state*); /* / */
 static void parse_ctl_x52(struct cp_state*); /* * */
 static void parse_ctl_x5b(struct cp_state*); /* [ */ 
+static void parse_ctl_x5d(struct cp_state*); /* ] */ 
 static void parse_ctl_x76(struct cp_state*); /* = */ 
+static void parse_ctl_x7c(struct cp_state*); /* | */ 
 
 static void printbuf_str(struct cp_state*, char*);
 static void printbuf_ctok(struct cp_state*);
@@ -139,7 +141,7 @@ void creole_parse(char *text, const char *host, char** out, int len)
 		i++;
 	}
 
-	if(i)
+	if(i) /* theres stuff left parse */
 		parse_line(text, i, &state);
 
 	if(state.gflags & CG_UL)
@@ -166,9 +168,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 	s->inc_header = 0;
 
 	while((ch = line[i++]) != '\0') {
-
-		if(ch>0x30  && ch < 0x7b && ch != '=') {
-
+		if(ch>0x30  && ch < 0x7b && ch != '=' && ch != '[' && ch != ']') {
 			parse_str_tokens(ch, s);
 			continue;
 		}
@@ -176,7 +176,8 @@ void parse_line(char *line, int len, struct cp_state *s)
 		switch_ctl_tokens(ch, s);
 	}
 
-	if(s->nst > 0) {
+	if(s->nst > 0 && !( s->lflags&(CL_AHREF|CL_ATITLE) ) ) {
+		/* if stuff is there and not a link */
 		printbuf_stok(s);
 		s->nst = 0;
 	}
@@ -204,10 +205,6 @@ void parse_line(char *line, int len, struct cp_state *s)
 
 void parse_str_tokens(char ch, struct cp_state *s)
 {
-	if(s->lflags & CL_AHREF) {
-		printbuf_str(s,"{{");
-		s->lflags ^= CL_AHREF;
-	}
 
 	if(!(s->lflags&(CL_CTL|CL_STR)) || (s->lflags & CL_CTL) && !(s->lflags & CL_STR)) {
 		if(s->nct) {
@@ -244,7 +241,8 @@ void parse_str_tokens(char ch, struct cp_state *s)
 
 void switch_ctl_tokens(char ch, struct cp_state *s)
 {
-	if(s->nst > 0) {
+	if(s->nst > 0 && !(s->lflags&(CL_AHREF|CL_ATITLE)) ) {
+
 		printbuf_stok(s);
 		s->nst = 0;
 	}
@@ -274,7 +272,7 @@ void switch_ctl_tokens(char ch, struct cp_state *s)
 void parse_ctl_tokens(struct cp_state *s)
 {
 	s->ctk[s->nct] = '\0';
-	if(s->ctk[0] != '=' && ( s->lflags & CL_HEADER || ( s->nct == 1 && (s->lflags & CL_STR) )) ) {
+	if(s->ctk[0] != '=' && s->ctk[0] != '|' && ( s->lflags & CL_HEADER || ( s->nct == 1 && (s->lflags & CL_STR) )) ) {
 
 		printbuf_ctok(s);
 
@@ -302,12 +300,24 @@ void parse_ctl_tokens(struct cp_state *s)
 	case '[':
 		parse_ctl_x5b(s);
 	break;
+
+	case ']':
+		parse_ctl_x5d(s);
+	break;
+
+	case '|':
+		parse_ctl_x7c(s);
+	break;
 	}
 
 	s->nct = 0;
 }
 
-/* handle * */
+/* handle * 
+ *
+ * this one is a pain because it deals with both
+ * strong emphasis and unordered list
+ * */
 void parse_ctl_x52(struct cp_state *s)
 {
 	if(( s->lflags&CL_STR || !(s->lflags&(CL_STR|CL_CTL)) ) ||
@@ -346,7 +356,8 @@ void parse_ctl_x52(struct cp_state *s)
 		printbuf_str(s,"<li>");
 	} else
 	if(!(s->gflags & CG_UL) && (s->lflags & CL_CTL) && s->nct == 1) {
-		/* NOT in string more OR UL mode */
+		/* NOT in string more OR UL mode and ntok = 1
+		 * so we must be starting an unordered list*/
 		(s->gflags) ^= CG_UL;
 		s->inc_list = s->nct;
 		printbuf_str(s, "<ul>\n");
@@ -416,15 +427,71 @@ void parse_ctl_x5b(struct cp_state *s)
 	if(s->nct > 1 && !(s->lflags & (CL_AHREF|CL_ATITLE))) {
 		short f = s->nct - 2;
 		
-		printbuf_str(s, "<a href=\" ");
+		printbuf_str(s, "<a href=\"");
 		while(f-- > 0)
 			printbuf_str(s, "[");
 
 		s->lflags ^= CL_AHREF;
+
+		s->nct = 0;
 		return;
 	}
 
 	printbuf_ctok(s);
 }
 
+/* handle ] */
+void parse_ctl_x5d(struct cp_state *s)
+{
+	
+	if(!(s->lflags & (CL_AHREF|CL_ATITLE)))
+		printbuf_ctok(s);
 
+	if(s->nct > 1) {
+		short f = s->nct - 2;
+		if(s->lflags & CL_AHREF) {
+			/* it's a single style internal link */
+			char *tmp = malloc(sizeof(char*)*(strlen(s->host)+s->nst+1));
+			s->stk[s->nst] = '\0';
+			sprintf(tmp, "%s%s", s->host, s->stk);
+			printbuf_str(s, tmp);
+			printbuf_str(s, "\">");
+			printbuf_str(s, s->stk);
+			printbuf_str(s, "</a>");
+
+			free(tmp);
+			s->lflags ^= CL_AHREF;
+			s->nst = 0;
+		} else
+		if(s->lflags & CL_ATITLE) {
+			/* it's a double style link */
+			printbuf_str(s, ">");
+			s->stk[s->nst] = '\0';
+			printbuf_str(s, s->stk);
+			printbuf_str(s, "</a>");
+			s->lflags ^= CL_ATITLE;
+			s->nst = 0;
+		}
+		
+		while(f-- > 0)
+			printbuf_str(s, "]");
+
+		s->nct = 0;
+
+		return;
+	}
+
+}
+
+/* handle | */
+void parse_ctl_x7c(struct cp_state *s)
+{
+	
+	if(!(s->lflags & CL_AHREF))
+		printbuf_ctok(s);
+
+	printbuf_str(s,"lnk");
+	s->lflags ^= CL_AHREF;
+	s->lflags ^= CL_ATITLE;
+	s->nst = 0;
+}
