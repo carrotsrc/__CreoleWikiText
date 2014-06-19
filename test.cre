@@ -46,3 +46,4 @@ Links:
 [[YellowLink]]
 this is a [[Link]] in text
 [[YellowLink|Foo bar]]
+[[YellowLink|Foo //bar//]]
