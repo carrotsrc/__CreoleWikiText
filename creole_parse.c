@@ -130,6 +130,7 @@ void creole_parse(char *text, const char *host, char** out, int len)
 	while(text[i] != '\0') {
 		if(text[i] == '\n') {
 			text[i] = '\0';
+
 			parse_line(text, i, &state);
 			text += ++i;
 			i = 0;
@@ -201,6 +202,75 @@ void parse_line(char *line, int len, struct cp_state *s)
 	printbuf_str(s, "\n");
 }
 
+void parse_str_tokens(char ch, struct cp_state *s)
+{
+	if(s->lflags & CL_AHREF) {
+		printbuf_str(s,"{{");
+		s->lflags ^= CL_AHREF;
+	}
+
+	if(!(s->lflags&(CL_CTL|CL_STR)) || (s->lflags & CL_CTL) && !(s->lflags & CL_STR)) {
+		if(s->nct) {
+			/* parse preceeding control tokens */
+			parse_ctl_tokens(s);
+			s->nct = 0;
+		}
+
+		if((s->gflags & CG_UL) && !(s->lflags & CL_LIST)) {
+			printbuf_str(s, "</ul>\n");
+			s->gflags ^= CG_UL;
+		}
+			
+		/* flag in string mode, out of control mode */
+		if(s->lflags & CL_CTL)
+			s->lflags ^= CL_CTL;
+
+		s->lflags ^= CL_STR;
+	}
+
+	if(( s->lflags & CL_OPEN_HEADER)) {
+		/* the control tokens opened a header */
+		s->lflags ^= CL_OPEN_HEADER;
+		s->lflags ^= CL_HEADER; /* the rest is header mode */
+	}
+
+	if(s->nct) {
+		parse_ctl_tokens(s);
+		s->nct = 0;
+	}
+
+	s->stk[s->nst++] = ch;
+}
+
+void switch_ctl_tokens(char ch, struct cp_state *s)
+{
+	if(s->nst > 0) {
+		printbuf_stok(s);
+		s->nst = 0;
+	}
+
+
+	if(s->nct > 0 && ch != s->ctk[s->nct-1]) {
+		parse_ctl_tokens(s);
+		s->nct = 0;
+	}
+
+	switch(ch) {
+	case ' ':
+		if(s->lflags & CL_CTL)
+			s->lflags ^= CL_CTL;
+
+		if(!(s->lflags & CL_STR))
+			break;
+
+		printbuf_str(s, " ");
+	break;
+	default:
+		s->ctk[s->nct++] = ch;
+	break;
+	}
+}
+
 void parse_ctl_tokens(struct cp_state *s)
 {
 	s->ctk[s->nct] = '\0';
@@ -240,8 +310,10 @@ void parse_ctl_tokens(struct cp_state *s)
 /* handle * */
 void parse_ctl_x52(struct cp_state *s)
 {
-	if(s->lflags&CL_STR || !(s->lflags&(CL_STR|CL_CTL))) {
-		/* in string mode or space terminated control mode */
+	if(( s->lflags&CL_STR || !(s->lflags&(CL_STR|CL_CTL)) ) ||
+		(!(s->gflags & CG_UL) && (s->lflags & CL_CTL) && s->nct > 1) ) {
+		/* in string mode or space terminated control mode  OR
+		 * not in unordered list AND not in String mode AND ntok > 1 */
 		unsigned short f = 0;
 		while(s->nct > 0) {
 			if(++f == 2) {
@@ -259,7 +331,8 @@ void parse_ctl_x52(struct cp_state *s)
 			printbuf_str(s, "*");
 
 	} else
-	if((s->gflags & CG_UL) && !((s->lflags) & CL_STR)) {
+	if((s->gflags & CG_UL) && (s->lflags & CL_CTL)) {
+		/* in UL mode and control mode */
 		if(s->inc_list < s->nct) {
 			s->inc_list = s->nct;
 			printbuf_str(s, "<ul>\n");
@@ -272,14 +345,13 @@ void parse_ctl_x52(struct cp_state *s)
 		s->lflags ^= CL_LIST;
 		printbuf_str(s,"<li>");
 	} else
-	if(!(s->gflags & CG_UL) && !(s->lflags & CL_STR) ) {
-		if(s->nct == 1) {
-			(s->gflags) ^= CG_UL;
-			s->inc_list = s->nct;
-			printbuf_str(s, "<ul>\n");
-			printbuf_str(s, "<li>");
-			s->lflags ^= CL_LIST;
-		}
+	if(!(s->gflags & CG_UL) && (s->lflags & CL_CTL) && s->nct == 1) {
+		/* NOT in string more OR UL mode */
+		(s->gflags) ^= CG_UL;
+		s->inc_list = s->nct;
+		printbuf_str(s, "<ul>\n");
+		printbuf_str(s, "<li>");
+		s->lflags ^= CL_LIST;
 	}
 }
 
@@ -356,71 +428,3 @@ void parse_ctl_x5b(struct cp_state *s)
 }
 
 
-void parse_str_tokens(char ch, struct cp_state *s)
-{
-	if(s->lflags & CL_AHREF) {
-		printbuf_str(s,"{{");
-		s->lflags ^= CL_AHREF;
-	}
-
-	if(!(s->lflags&(CL_CTL|CL_STR)) || (s->lflags & CL_CTL) && !(s->lflags & CL_STR)) {
-		if(s->nct) {
-			/* parse preceeding control tokens */
-			parse_ctl_tokens(s);
-			s->nct = 0;
-		}
-
-		if((s->gflags & CG_UL) && !(s->lflags & CL_LIST)) {
-			printbuf_str(s, "</ul>\n");
-			s->gflags ^= CG_UL;
-		}
-			
-		/* flag in string mode, out of control mode */
-		if(s->lflags & CL_CTL)
-			s->lflags ^= CL_CTL;
-
-		s->lflags ^= CL_STR;
-	}
-
-	if(( s->lflags & CL_OPEN_HEADER)) {
-		/* the control tokens opened a header */
-		s->lflags ^= CL_OPEN_HEADER;
-		s->lflags ^= CL_HEADER; /* the rest is header mode */
-	}
-
-	if(s->nct) {
-		parse_ctl_tokens(s);
-		s->nct = 0;
-	}
-
-	s->stk[s->nst++] = ch;
-}
-
-void switch_ctl_tokens(char ch, struct cp_state *s)
-{
-	if(s->nst > 0) {
-		printbuf_stok(s);
-		s->nst = 0;
-	}
-
-
-	if(s->nct > 0 && ch != s->ctk[s->nct-1]) {
-		parse_ctl_tokens(s);
-		s->nct = 0;
-	}
-
-	switch(ch) {
-	case ' ':
-		if(s->lflags & CL_CTL)
-			s->lflags ^= CL_CTL;
-
-		if(!(s->lflags & CL_STR))
-			break;
-
-		printbuf_str(s, " ");
-	break;
-	default:
-		s->ctk[s->nct++] = ch;
-	break;
-	}
-}
