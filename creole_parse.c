@@ -33,7 +33,7 @@ struct cp_state {
 
 
 	unsigned int inc_header; /* header incerement */
-	unsigned short inc_ulist; /* list increment */
+	unsigned short inc_ulist; /* unlist increment */
 	unsigned short inc_olist; /* ordered list increment */
 	unsigned int lflags; /* local/line flags */
 	unsigned int gflags; /* global flags */
@@ -155,8 +155,12 @@ char *creole_parse(char *text, const char *host, int len)
 	if(i) /* theres stuff left parse */
 		parse_line(text, i, &state);
 
-	if(state.gflags & CG_UL)
-		printbuf_str(&state, "</ul>");
+	if(state.gflags & CG_UL) {
+		while(state.inc_ulist-- > 1)
+			printbuf_str(&state, "</li></ul>");
+
+		printbuf_str(&state, "</li></ul>");
+	}
 
 	printbuf_str(&state, "</p>");
 	printbuf_ch(&state, '\0');
@@ -169,7 +173,8 @@ void parse_line(char *line, int len, struct cp_state *s)
 	if(len == 0) {
 		/* new paragraph */
 		if(GF(CG_UL)) {
-			printbuf_str(s, "</ul>");
+			while(s->inc_ulist-- > 0)
+				printbuf_str(s, "</ul>");
 			s->gflags ^= CG_UL;
 		}
 
@@ -231,9 +236,6 @@ void parse_line(char *line, int len, struct cp_state *s)
 		printbuf_str(s, tmp);
 		free(tmp);
 	}
-
-	if(GF(CG_UL))
-		printbuf_str(s, "</li>");
 
 	printbuf_str(s, "\n\0");
 }
@@ -405,8 +407,10 @@ void parse_ctl_x52(struct cp_state *s)
 		} else 
 		if(s->inc_ulist > s->nct) {
 			s->inc_ulist = s->nct;
-			printbuf_str(s, "</ul>\n");
+			printbuf_str(s, "</li>\n</ul>\n</li>\n");
 		}
+		else
+			printbuf_str(s,"</li>\n");
 
 		s->lflags ^= CL_LIST;
 		printbuf_str(s,"<li>");
