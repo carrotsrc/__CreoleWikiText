@@ -28,18 +28,15 @@ not horizontal - needs fixing:
 this should be open-close italic ////
 this should be //**italic and bold**//
 this should - hypenate
+
+this should be \\\
+on a newly formatted line line
 * L1 1
 *L1 2
 ** **L2** 1
 ***L3 1
 ** L2 2
 *L1 3
-
- hello world
-
-*NEW LIST
-**LIST 2B
-*NEWLIST B
 
 Links:
 [ No link]

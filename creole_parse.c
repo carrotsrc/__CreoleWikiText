@@ -53,10 +53,12 @@ static void parse_ctl_tokens(struct cp_state*);
 
 static int check_url(const char *, unsigned int);
 
+static void parse_ctl_x0a(struct cp_state*); /* \n */
 static void parse_ctl_x2d(struct cp_state*); /* - */
 static void parse_ctl_x2f(struct cp_state*); /* / */
 static void parse_ctl_x52(struct cp_state*); /* * */
 static void parse_ctl_x5b(struct cp_state*); /* [ */ 
+static void parse_ctl_x5c(struct cp_state*); /* [ */ 
 static void parse_ctl_x5d(struct cp_state*); /* ] */ 
 static void parse_ctl_x76(struct cp_state*); /* = */ 
 static void parse_ctl_x7c(struct cp_state*); /* | */ 
@@ -176,7 +178,8 @@ void parse_line(char *line, int len, struct cp_state *s)
 	s->inc_header = 0;
 
 	while((ch = line[i++]) != '\0') {
-		if(ch>0x30  && ch < 0x7b && ch != '=' && ch != '[' && ch != ']') {
+
+		if( (ch>0x30  && ch < 0x5b) || (ch > 0x60 && ch < 0x7b) ) {
 			parse_str_tokens(ch, s);
 			continue;
 		}
@@ -333,6 +336,10 @@ void parse_ctl_tokens(struct cp_state *s)
 
 	case '|':
 		parse_ctl_x7c(s);
+	break;
+
+	case '\\':
+		parse_ctl_x5c(s);
 	break;
 	}
 
@@ -526,6 +533,22 @@ void parse_ctl_x7c(struct cp_state *s)
 		printbuf_str(s, "\">");
 	}
 	s->nst = 0;
+}
+
+/* handle \ */
+void parse_ctl_x5c(struct cp_state *s)
+{
+	/* in string mode */
+	unsigned short f = 0;
+	while(s->nct > 0) {
+		if(++f == 2) {
+			printbuf_str(s, "<br />");
+			f = 0;
+		}
+		s->nct--;
+	}
+	if(f > 0)
+		printbuf_str(s, "\\");
 }
 
 /* Basic check to see if we're dealing with a URL */
