@@ -33,7 +33,8 @@ struct cp_state {
 
 
 	unsigned int inc_header; /* header incerement */
-	unsigned int inc_list; /* list increment */
+	unsigned short inc_ulist; /* list increment */
+	unsigned short inc_olist; /* ordered list increment */
 	unsigned int lflags; /* local/line flags */
 	unsigned int gflags; /* global flags */
 	const char *host; /* wiki host */
@@ -129,7 +130,7 @@ char *creole_parse(char *text, const char *host, int len)
 	/* initialise the machine */
 	state.nct = 0;
 	state.inc_header = 0;
-	state.inc_list = 0;
+	state.inc_ulist = 0;
 	state.lflags = 0;
 	state.gflags = 0;
 	state.host = host;
@@ -398,12 +399,12 @@ void parse_ctl_x52(struct cp_state *s)
 	} else
 	if(GF(CG_UL) && LF(CL_CTL)) {
 		/* in UL mode and control mode */
-		if(s->inc_list < s->nct) {
-			s->inc_list = s->nct;
+		if(s->inc_ulist < s->nct) {
+			s->inc_ulist = s->nct;
 			printbuf_str(s, "<ul>\n");
 		} else 
-		if(s->inc_list > s->nct) {
-			s->inc_list = s->nct;
+		if(s->inc_ulist > s->nct) {
+			s->inc_ulist = s->nct;
 			printbuf_str(s, "</ul>\n");
 		}
 
@@ -414,7 +415,7 @@ void parse_ctl_x52(struct cp_state *s)
 		/* NOT in string more OR UL mode and ntok = 1
 		 * so we must be starting an unordered list*/
 		s->gflags ^= CG_UL;
-		s->inc_list = s->nct;
+		s->inc_ulist = s->nct;
 		printbuf_str(s, "<ul>\n");
 		printbuf_str(s, "<li>");
 		s->lflags ^= CL_LIST;
