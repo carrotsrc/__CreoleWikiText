@@ -15,8 +15,8 @@
 */
 #include "creole_parse.h"
 
-#define CHKLF(f) s->lflags & f
-#define CHKGF(f) s->gflags & f
+#define LF(f) ((s->lflags & (f)))
+#define GF(f) ((s->gflags & (f)))
 
 #define TOGLF(f) s->lflags ^= f
 #define TOGGF(f) s->gflags ^= f
@@ -183,7 +183,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 		switch_ctl_tokens(ch, s);
 	}
 
-	if(s->nst > 0 && !( CHKLF(CL_AHREF|CL_ATITLE) ) ) {
+	if(s->nst > 0 && !LF(CL_AHREF|CL_ATITLE) ) {
 		/* if stuff is there and not a link */
 		printbuf_stok(s);
 		s->nst = 0;
@@ -197,14 +197,14 @@ void parse_line(char *line, int len, struct cp_state *s)
 
 	free(s->ctk);
 
-	if(CHKLF(CL_HEADER)) {
+	if(LF(CL_HEADER)) {
 		char *tmp = malloc(8);
 		sprintf(tmp, "</h%d>", s->inc_header);
 		printbuf_str(s, tmp);
 		free(tmp);
 	}
 
-	if(CHKGF(CG_UL))
+	if(GF(CG_UL))
 		printbuf_str(s, "</li>");
 
 	printbuf_str(s, "\n\0");
@@ -213,26 +213,26 @@ void parse_line(char *line, int len, struct cp_state *s)
 void parse_str_tokens(char ch, struct cp_state *s)
 {
 
-	if(!(CHKLF(CL_CTL|CL_STR)) || (CHKLF(CL_CTL)) && !(CHKLF(CL_STR)) ) {
+	if( !LF(CL_CTL|CL_STR) || (LF(CL_CTL)) && !LF(CL_STR) ) {
 		if(s->nct) {
 			/* parse preceeding control tokens */
 			parse_ctl_tokens(s);
 			s->nct = 0;
 		}
 
-		if( (CHKGF(CG_UL)) && !(CHKLF(CL_LIST)) ) {
+		if( GF(CG_UL) && !LF(CL_LIST) ) {
 			printbuf_str(s, "</ul>\n");
 			s->gflags ^= CG_UL;
 		}
 			
 		/* flag in string mode, out of control mode */
-		if(CHKLF(CL_CTL))
+		if(LF(CL_CTL))
 			s->lflags ^= CL_CTL;
 
 		s->lflags ^= CL_STR;
 	}
 
-	if( CHKLF(CL_OPEN_HEADER) ) {
+	if(LF(CL_OPEN_HEADER)) {
 		/* the control tokens opened a header */
 		s->lflags ^= CL_OPEN_HEADER;
 		s->lflags ^= CL_HEADER; /* the rest is header mode */
@@ -248,7 +248,7 @@ void parse_str_tokens(char ch, struct cp_state *s)
 
 void switch_ctl_tokens(char ch, struct cp_state *s)
 {
-	if(s->nst > 0 && !(CHKLF(CL_AHREF|CL_ATITLE)) ) {
+	if(s->nst > 0 && !LF(CL_AHREF|CL_ATITLE) ) {
 
 		printbuf_stok(s);
 		s->nst = 0;
@@ -262,14 +262,14 @@ void switch_ctl_tokens(char ch, struct cp_state *s)
 
 	switch(ch) {
 	case ' ':
-		if(CHKLF(CL_CTL))
+		if(LF(CL_CTL))
 			s->lflags ^= CL_CTL;
 
-		if(CHKLF(CL_ATITLE)) {
+		if(LF(CL_ATITLE)) {
 			s->stk[s->nst++] = ' ';
 			break;
 		}
-		if(!(CHKLF(CL_STR)))
+		if(!LF(CL_STR))
 			break;
 
 		printbuf_str(s, " ");
@@ -283,7 +283,7 @@ void switch_ctl_tokens(char ch, struct cp_state *s)
 void parse_ctl_tokens(struct cp_state *s)
 {
 	s->ctk[s->nct] = '\0';
-	if(s->ctk[0] != '=' && s->ctk[0] != '|' && ( s->lflags & CL_HEADER || ( s->nct == 1 && (s->lflags & CL_STR) )) ) {
+	if(s->ctk[0] != '=' && s->ctk[0] != '|' && ( LF(CL_HEADER) || (s->nct == 1 && LF(CL_STR)) ) ) {
 
 		printbuf_ctok(s);
 
@@ -331,8 +331,8 @@ void parse_ctl_tokens(struct cp_state *s)
  * */
 void parse_ctl_x52(struct cp_state *s)
 {
-	if(( s->lflags&CL_STR || !(s->lflags&(CL_STR|CL_CTL)) ) ||
-		(!(s->gflags & CG_UL) && (s->lflags & CL_CTL) && s->nct > 1) ) {
+	if(( LF(CL_STR) || !LF(CL_STR|CL_CTL) ) ||
+		(!GF(CG_UL) && LF(CL_CTL) && s->nct > 1) ) {
 		/* in string mode or space terminated control mode  OR
 		 * not in unordered list AND not in String mode AND ntok > 1 */
 		unsigned short f = 0;
@@ -352,7 +352,7 @@ void parse_ctl_x52(struct cp_state *s)
 			printbuf_str(s, "*");
 
 	} else
-	if((s->gflags & CG_UL) && (s->lflags & CL_CTL)) {
+	if(GF(CG_UL) && LF(CL_CTL)) {
 		/* in UL mode and control mode */
 		if(s->inc_list < s->nct) {
 			s->inc_list = s->nct;
@@ -366,10 +366,10 @@ void parse_ctl_x52(struct cp_state *s)
 		s->lflags ^= CL_LIST;
 		printbuf_str(s,"<li>");
 	} else
-	if(!(s->gflags & CG_UL) && (s->lflags & CL_CTL) && s->nct == 1) {
+	if(!GF(CG_UL) && LF(CL_CTL) && s->nct == 1) {
 		/* NOT in string more OR UL mode and ntok = 1
 		 * so we must be starting an unordered list*/
-		(s->gflags) ^= CG_UL;
+		s->gflags ^= CG_UL;
 		s->inc_list = s->nct;
 		printbuf_str(s, "<ul>\n");
 		printbuf_str(s, "<li>");
@@ -392,7 +392,7 @@ void parse_ctl_x76(struct cp_state *s)
 		return;
 	}
 
-	if((s->lflags & CL_HEADER) && ((s->lflags) & CL_STR) && (s->lflags & CL_TRAIL))
+	if(LF(CL_HEADER) && LF(CL_STR) && LF(CL_TRAIL))
 		return;
 
 	printbuf_ctok(s);
@@ -401,12 +401,12 @@ void parse_ctl_x76(struct cp_state *s)
 /* handle / */
 void parse_ctl_x2f(struct cp_state *s)
 {
-	if(s->lflags&CL_STR) {
+	if(LF(CL_STR)) {
 		/* in string mode */
 		unsigned short f = 0;
 		while(s->nct > 0) {
 			if(++f == 2) {
-				if(s->gflags & CG_ITALIC)
+				if(GF(CG_ITALIC))
 					printbuf_str(s, "</em>");
 				else
 					printbuf_str(s, "<em>");
@@ -426,7 +426,7 @@ void parse_ctl_x2f(struct cp_state *s)
 void parse_ctl_x2d(struct cp_state *s)
 {
 	unsigned short chk = CL_CTL|CL_TRAIL;
-	if((s->lflags&chk == chk) && s->nct >= 4)
+	if(LF(chk) == chk && s->nct >= 4)
 		printbuf_str(s, "<hr />");
 	else
 		printbuf_ctok(s);
@@ -435,7 +435,7 @@ void parse_ctl_x2d(struct cp_state *s)
 /* handle [ */
 void parse_ctl_x5b(struct cp_state *s)
 {
-	if(s->nct > 1 && !(s->lflags & (CL_AHREF|CL_ATITLE))) {
+	if(s->nct > 1 && !LF(CL_AHREF|CL_ATITLE) ) {
 		unsigned short f = s->nct - 2;
 		
 		printbuf_str(s, "<a href=\"");
@@ -455,12 +455,12 @@ void parse_ctl_x5b(struct cp_state *s)
 void parse_ctl_x5d(struct cp_state *s)
 {
 	
-	if(!(s->lflags & (CL_AHREF|CL_ATITLE)))
+	if(!LF(CL_AHREF|CL_ATITLE) )
 		printbuf_ctok(s);
 
 	if(s->nct > 1) {
 		unsigned short f = s->nct - 2;
-		if(s->lflags & CL_AHREF) {
+		if(LF(CL_AHREF)) {
 			/* it's a single style internal link */
 			char *tmp = malloc(sizeof(char*)*(strlen(s->host)+s->nst+1));
 			s->stk[s->nst] = '\0';
@@ -474,7 +474,7 @@ void parse_ctl_x5d(struct cp_state *s)
 			s->lflags ^= CL_AHREF;
 			s->nst = 0;
 		} else
-		if(s->lflags & CL_ATITLE) {
+		if(LF(CL_ATITLE)) {
 			/* it's a double style link */
 			printbuf_str(s, ">");
 			s->stk[s->nst] = '\0';
@@ -497,7 +497,7 @@ void parse_ctl_x5d(struct cp_state *s)
 /* handle | */
 void parse_ctl_x7c(struct cp_state *s)
 {
-	if(!(s->lflags & CL_AHREF))
+	if(!LF(CL_AHREF))
 		printbuf_ctok(s);
 
 	s->lflags ^= CL_AHREF;
