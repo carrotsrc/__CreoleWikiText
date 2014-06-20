@@ -166,6 +166,22 @@ char *creole_parse(char *text, const char *host, int len)
 void parse_line(char *line, int len, struct cp_state *s)
 {
 	if(len == 0) {
+		/* new paragraph */
+		if(GF(CG_UL)) {
+			printbuf_str(s, "</ul>");
+			s->gflags ^= CG_UL;
+		}
+
+		if(GF(CG_BOLD)) {
+			printbuf_str(s, "</strong>");
+			s->gflags ^= CG_BOLD;
+		}
+
+		if(GF(CG_ITALIC)) {
+			printbuf_str(s, "</italic>");
+			s->gflags ^= CG_ITALIC;
+		}
+
 		printbuf_str(s, "</p>\n<p>\n");
 		return;
 	}
