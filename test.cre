@@ -47,3 +47,6 @@ Links:
 this is a [[Link]] in text
 [[YellowLink|Foo bar]]
 [[YellowLink|Foo //bar//]]
+
+this should be a full link:
+[[http://www.wikipedia.org|Wikipedia Website]]

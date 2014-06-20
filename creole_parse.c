@@ -15,11 +15,12 @@
 */
 #include "creole_parse.h"
 
-#define LF(f) ((s->lflags & (f)))
-#define GF(f) ((s->gflags & (f)))
+#define LF(f) (s->lflags & (f))
+#define GF(f) (s->gflags & (f))
 
-#define TOGLF(f) s->lflags ^= f
-#define TOGGF(f) s->gflags ^= f
+#define TLF(f) s->lflags ^= f
+#define TGF(f) s->gflags ^= f
+#define CTOK(s, c) (s->ctok[s->nct++] = c)
 
 struct cp_state {
 	/* control tokens */
@@ -248,7 +249,7 @@ void parse_str_tokens(char ch, struct cp_state *s)
 
 void switch_ctl_tokens(char ch, struct cp_state *s)
 {
-	if(s->nst > 0 && !LF(CL_AHREF|CL_ATITLE) ) {
+	if(s->nst > 0 && !LF(CL_AHREF) ) {
 
 		printbuf_stok(s);
 		s->nst = 0;
@@ -274,6 +275,20 @@ void switch_ctl_tokens(char ch, struct cp_state *s)
 
 		printbuf_str(s, " ");
 	break;
+
+	case '.':
+		s->stk[s->nst++] = ' ';
+	break;
+
+	case '/':
+		if(LF(CL_AHREF)) {
+			s->stk[s->nst++] = '/';
+			break;
+		}
+		
+		s->ctk[s->nct++] = ch;
+	break;
+
 	default:
 		s->ctk[s->nct++] = ch;
 	break;
@@ -401,7 +416,7 @@ void parse_ctl_x76(struct cp_state *s)
 /* handle / */
 void parse_ctl_x2f(struct cp_state *s)
 {
-	if(LF(CL_STR)) {
+	if(LF(CL_STR) || LF(CL_CTL)) {
 		/* in string mode */
 		unsigned short f = 0;
 		while(s->nct > 0) {
@@ -516,6 +531,7 @@ void parse_ctl_x7c(struct cp_state *s)
 	s->nst = 0;
 }
 
+/* Basic check to see if we're dealing with a URL */
 int check_url(const char *str, unsigned int len)
 {
 	return 0;
