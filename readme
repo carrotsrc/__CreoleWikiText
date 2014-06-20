@@ -1,0 +1,65 @@
+Creole Wiki Markup V1.0
+C Parser
+=======================
+
+Author: Charlie FG, Carrotsrc.org
+Modified: 2014/06/20
+
+
+A parser that converts inputted creole formatted text blocks into HTML formatted text blocks.
+It functions as a state machine and tracks changes per line and per text block. It logically breaks the tect block into lines which it then processes individually.
+
+There are two different kinds of token on a line:
+* Control tokens - these are reserved tokens for creole to use as formatters
+* String tokens - these are your alphanumeric tokens, as well as space
+
+note: some tokens may be within the range checked for control tokens;  they are treated as string tokens if they have no specific handling.
+
+Each line is broken up into two or three sections:
+* Control section - This is for handling tokens that may qualify the line. It is delimited by the first string token.
+* String section - This will be the bulk of the line with formatting, alphanumeric, spaces. It is delimited by the end of line
+* Trail Section - This is a special section that is entered if the end of the line consists of control tokens.
+
+As formatting is encountered, the machine's flags are toggled and untoggled. There are two different kinds of flags
+* Global flags - these are for when formatting is toggled over multiple lines (multiple logical breaks)
+* Local flags - (or Line flags) these are for formatting that exists for the maximum duration of a line
+
+Current Compliance
+==================
+
+- Bold **
+- Italic //
+
+- Headings
+- Ignored emphasis on headings
+- Ignores trailing heading control tokens
+
+- Internal Links
+- External links
+- Formatting on link description
+
+- Unordered Lists
+- Nesting of unordered lists
+- Space can be used or ommitted
+- If space is used, will allow for bold emphasis on first word of list item
+
+- Paragraphs
+- Emphasis stops at new paragraph
+- Unordered lists stop at new paragrpah
+
+- Forced line break \\
+
+- Horizontal rules
+
+
+Todo
+====
+
+- Ordered lists #
+- Tables |=|
+- Nowiki {{{ }}}
+- Escape character ~
+- Place holder <<< >>
+
+- No links in headers
+- Maintain current emphasis state in link description
