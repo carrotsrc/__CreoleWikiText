@@ -277,7 +277,7 @@ void switch_ctl_tokens(char ch, struct cp_state *s)
 	break;
 
 	case '.':
-		s->stk[s->nst++] = ' ';
+		s->stk[s->nst++] = '.';
 	break;
 
 	case '/':
@@ -479,11 +479,8 @@ void parse_ctl_x5d(struct cp_state *s)
 			/* it's a single style internal link */
 			char *tmp = malloc(sizeof(char*)*(strlen(s->host)+s->nst+1));
 			s->stk[s->nst] = '\0';
-			sprintf(tmp, "%s%s", s->host, s->stk);
+			sprintf(tmp, "%s%s\">%s</a>", s->host, s->stk, s->stk);
 			printbuf_str(s, tmp);
-			printbuf_str(s, "\">");
-			printbuf_str(s, s->stk);
-			printbuf_str(s, "</a>");
 
 			free(tmp);
 			s->lflags ^= CL_AHREF;
@@ -526,7 +523,7 @@ void parse_ctl_x7c(struct cp_state *s)
 		printbuf_str(s, "\">");
 	} else {
 		printbuf_stok(s);
-		printbuf_str(s, "\"");
+		printbuf_str(s, "\">");
 	}
 	s->nst = 0;
 }
@@ -534,5 +531,13 @@ void parse_ctl_x7c(struct cp_state *s)
 /* Basic check to see if we're dealing with a URL */
 int check_url(const char *str, unsigned int len)
 {
-	return 0;
+	if(len < 8)
+		return 0;
+	
+	const char url[8] = "http://";
+	unsigned short i = 0;
+	while(i < 7)
+		if(str[i] != url[i++])
+			return 0;
+	return 1;
 }
