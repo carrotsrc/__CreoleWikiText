@@ -136,6 +136,7 @@ char *creole_parse(char *text, const char *host, int len)
 	state.flen = len+(len>>1);
 	state.fbuf = malloc(sizeof(char)*(state.flen+1));
 
+	printbuf_str(&state, "<p>");
 	/* new lines seem to be a critical token
 	 * at the moment. Get each new line */
 	while(text[i] != '\0') {
@@ -156,12 +157,18 @@ char *creole_parse(char *text, const char *host, int len)
 	if(state.gflags & CG_UL)
 		printbuf_str(&state, "</ul>");
 
-	printbuf_str(&state, "\n\0");
+	printbuf_str(&state, "</p>");
+	printbuf_ch(&state, '\0');
+
 	return state.fbuf;
 }
 
 void parse_line(char *line, int len, struct cp_state *s)
 {
+	if(len == 0) {
+		printbuf_str(s, "</p>\n<p>\n");
+		return;
+	}
 	int i = 0;
 	char ch = '\0';
 
@@ -216,7 +223,6 @@ void parse_line(char *line, int len, struct cp_state *s)
 
 void parse_str_tokens(char ch, struct cp_state *s)
 {
-
 	if( !LF(CL_CTL|CL_STR) || (LF(CL_CTL)) && !LF(CL_STR) ) {
 		if(s->nct) {
 			/* parse preceeding control tokens */
