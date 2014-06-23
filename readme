@@ -33,7 +33,7 @@ Current Compliance
 - Italic //
 
 - Headings
-- Ignored emphasis on headings
+- Ignored any formatting in headers
 - Ignores trailing heading control tokens
 
 - Internal Links
@@ -65,5 +65,4 @@ Todo
 - Escape character ~
 - Place holder <<< >>>
 
-- No links in headers
 - Maintain current emphasis state in link description

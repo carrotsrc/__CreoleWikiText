@@ -553,8 +553,10 @@ void parse_ctl_x5d(struct cp_state *s)
 /* handle | */
 void parse_ctl_x7c(struct cp_state *s)
 {
-	if(!LF(CL_AHREF|CL_ISRC))
+	if(!LF(CL_AHREF|CL_ISRC)) {
 		printbuf_ctok(s);
+		return;
+	}
 
 	if(LF(CL_ISRC)) {
 		printbuf_stok(s);
