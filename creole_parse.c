@@ -209,12 +209,9 @@ char *creole_parse(char *text, const char *host, int len)
 	if(i) /* theres stuff left parse */
 		parse_line(text, i, &state);
 
-	if(state.gflags & CG_UL) {
-		while(state.inc_list-- > 1)
-			printbuf_str(&state, "</li></ul>");
+	if(state.gflags & CG_UL)
+		ls_pop(0, &state);
 
-		printbuf_str(&state, "</li></ul>");
-	}
 
 	printbuf_str(&state, "</p>");
 	printbuf_ch(&state, '\0');
@@ -227,9 +224,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 	if(len == 0) {
 		/* new paragraph */
 		if(GF(CG_UL)) {
-			while(s->inc_list-- > 0)
-				printbuf_str(s, "</ul>");
-			s->gflags ^= CG_UL;
+			ls_pop(0, s);
 		}
 
 		if(GF(CG_BOLD)) {
