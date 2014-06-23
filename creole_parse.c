@@ -22,6 +22,22 @@
 #define TGF(f) s->gflags ^= f
 #define CTOK(s, c) (s->ctok[s->nct++] = c)
 
+#define LS_UL 1
+#define LS_OL 2
+#define LSPOP(t) s->lsn--
+
+
+#define MAX_NESTED 32
+
+/* this is a list stack item
+ * which is used for nesting
+ * list types
+ */
+struct cp_lsi {
+	unsigned short type;
+	unsigned short inc;
+};
+
 struct cp_state {
 	/* control tokens */
 	char *ctk;
@@ -33,11 +49,13 @@ struct cp_state {
 
 
 	unsigned int inc_header; /* header incerement */
-	unsigned short inc_ulist; /* unlist increment */
-	unsigned short inc_olist; /* ordered list increment */
+	unsigned short inc_list; /* list increment */
 	unsigned int lflags; /* local/line flags */
 	unsigned int gflags; /* global flags */
 	const char *host; /* wiki host */
+
+	unsigned short *list_stack; /* a stack of nested lists */
+	unsigned short lsn;
 
 	/* output buffer */
 	char *fbuf;
@@ -54,7 +72,11 @@ static void parse_ctl_tokens(struct cp_state*);
 
 static int check_url(const char *, unsigned int);
 
+static void ls_push(unsigned short, struct cp_state*);
+static void ls_pop(unsigned short, struct cp_state*);
+
 static void parse_ctl_x0a(struct cp_state*); /* \n */
+static void parse_ctl_x23(struct cp_state*); /* # */
 static void parse_ctl_x2d(struct cp_state*); /* - */
 static void parse_ctl_x2f(struct cp_state*); /* / */
 static void parse_ctl_x52(struct cp_state*); /* * */
@@ -121,6 +143,36 @@ void printbuf_stok(struct cp_state *s)
 
 }
 
+void ls_push(unsigned short type, struct cp_state *s)
+{
+	s->inc_list++; /* always lock it to the next indentation */
+	if(type == LS_UL)
+		printbuf_str(s, "<ul>\n");
+	else
+	if(type == LS_OL)
+		printbuf_str(s, "<ol>\n");
+
+	s->list_stack[s->lsn++] = type;
+}
+
+void ls_pop(unsigned short type, struct cp_state *s)
+{ 
+	while(s->inc_list > s->nct) {
+		s->lsn--;
+		if(s->list_stack[s->lsn] == LS_UL)
+				printbuf_str(s, "</li></ul>");
+		else
+		if(s->list_stack[s->lsn] == LS_OL)
+				printbuf_str(s, "</li></ol>");
+
+		s->inc_list--;
+	}
+
+	if(s->inc_list > 0)
+		printbuf_str(s, "</li>");
+
+}
+
 char *creole_parse(char *text, const char *host, int len)
 {
 	unsigned char ch = '\0';
@@ -130,12 +182,14 @@ char *creole_parse(char *text, const char *host, int len)
 	/* initialise the machine */
 	state.nct = 0;
 	state.inc_header = 0;
-	state.inc_ulist = 0;
+	state.inc_list = 0;
 	state.lflags = 0;
 	state.gflags = 0;
 	state.host = host;
 	state.flen = len+(len>>1);
 	state.fbuf = malloc(sizeof(char)*(state.flen+1));
+	state.list_stack = malloc(sizeof(short)*MAX_NESTED);
+	state.lsn = 0;
 
 	printbuf_str(&state, "<p>");
 	/* new lines seem to be a critical token
@@ -156,7 +210,7 @@ char *creole_parse(char *text, const char *host, int len)
 		parse_line(text, i, &state);
 
 	if(state.gflags & CG_UL) {
-		while(state.inc_ulist-- > 1)
+		while(state.inc_list-- > 1)
 			printbuf_str(&state, "</li></ul>");
 
 		printbuf_str(&state, "</li></ul>");
@@ -173,7 +227,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 	if(len == 0) {
 		/* new paragraph */
 		if(GF(CG_UL)) {
-			while(s->inc_ulist-- > 0)
+			while(s->inc_list-- > 0)
 				printbuf_str(s, "</ul>");
 			s->gflags ^= CG_UL;
 		}
@@ -401,13 +455,11 @@ void parse_ctl_x52(struct cp_state *s)
 	} else
 	if(GF(CG_UL) && LF(CL_CTL)) {
 		/* in UL mode and control mode */
-		if(s->inc_ulist < s->nct) {
-			s->inc_ulist = s->nct;
-			printbuf_str(s, "<ul>\n");
+		if(s->inc_list < s->nct) {
+			ls_push(LS_UL, s);
 		} else 
-		if(s->inc_ulist > s->nct) {
-			s->inc_ulist = s->nct;
-			printbuf_str(s, "</li>\n</ul>\n</li>\n");
+		if(s->inc_list > s->nct) {
+			ls_pop(LS_UL, s);
 		}
 		else
 			printbuf_str(s,"</li>\n");
@@ -419,8 +471,7 @@ void parse_ctl_x52(struct cp_state *s)
 		/* NOT in string more OR UL mode and ntok = 1
 		 * so we must be starting an unordered list*/
 		s->gflags ^= CG_UL;
-		s->inc_ulist = s->nct;
-		printbuf_str(s, "<ul>\n");
+		ls_push(LS_UL, s);
 		printbuf_str(s, "<li>");
 		s->lflags ^= CL_LIST;
 	}
@@ -576,6 +627,35 @@ void parse_ctl_x5c(struct cp_state *s)
 	}
 	if(f > 0)
 		printbuf_str(s, "\\");
+}
+
+/* handle # */
+static void parse_ctl_x23(struct cp_state *s)
+{
+	if(GF(CG_OL) && LF(CL_CTL)) {
+		/* in OL mode and control mode */
+		if(s->inc_list < s->nct) {
+			s->inc_list = s->nct;
+			printbuf_str(s, "<ol>\n");
+		} else 
+		if(s->inc_list > s->nct) {
+			s->inc_list = s->nct;
+			printbuf_str(s, "</ol>\n");
+		}
+
+		s->lflags ^= CL_LIST;
+		printbuf_str(s,"<li>");
+	} else
+	if(!GF(CG_UL) && LF(CL_CTL) && s->nct == 1) {
+		/* NOT in string more OR OL mode and ntok = 1
+		 * so we must be starting an unordered list*/
+		s->gflags ^= CG_OL;
+		s->inc_list = s->nct;
+		printbuf_str(s, "<ol>\n");
+		printbuf_str(s, "<li>");
+		s->lflags ^= CL_LIST;
+	}
+
 }
 
 /* Basic check to see if we're dealing with a URL */
