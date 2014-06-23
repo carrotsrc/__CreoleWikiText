@@ -38,8 +38,8 @@ Current Compliance
 - External links
 - Formatting on link description
 
-- Unordered Lists
-- Nesting of unordered lists
+- Unordered Lists + Unordered lists
+- Nesting and mixing of lists
 - Space can be used or ommitted
 - If space is used, will allow for bold emphasis on first word of list item
 
@@ -49,13 +49,12 @@ Current Compliance
 
 - Forced line break \\
 
-- Horizontal rules
+- Horizontal rules ----
 
 
 Todo
 ====
 
-- Ordered lists #
 - Tables |=|
 - Nowiki {{{ }}}
 - Escape character ~

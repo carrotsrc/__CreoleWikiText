@@ -297,11 +297,6 @@ void parse_str_tokens(char ch, struct cp_state *s)
 			parse_ctl_tokens(s);
 			s->nct = 0;
 		}
-
-		if( GF(CG_UL) && !LF(CL_LIST) ) {
-			ls_pop(0, s);
-			s->gflags ^= CG_UL;
-		}
 			
 		/* flag in string mode, out of control mode */
 		if(LF(CL_CTL))
@@ -452,7 +447,7 @@ void parse_ctl_x52(struct cp_state *s)
 			printbuf_str(s, "*");
 
 	} else
-	if(GF(CG_UL) && LF(CL_CTL)) {
+	if(GF(CG_UL) && LF(CL_CTL) && !LF(CL_LIST)) {
 		/* in UL mode and control mode */
 		if(s->inc_list < s->nct) {
 			ls_push(LS_UL, s);
