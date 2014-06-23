@@ -84,6 +84,7 @@ static void parse_ctl_x5b(struct cp_state*); /* [ */
 static void parse_ctl_x5c(struct cp_state*); /* [ */ 
 static void parse_ctl_x5d(struct cp_state*); /* ] */ 
 static void parse_ctl_x76(struct cp_state*); /* = */ 
+static void parse_ctl_x7bd(struct cp_state*); /* { } */ 
 static void parse_ctl_x7c(struct cp_state*); /* | */ 
 
 static void printbuf_str(struct cp_state*, char*);
@@ -378,6 +379,12 @@ void parse_ctl_tokens(struct cp_state *s)
 		return;
 	}
 
+	if(GF(CG_NFO) && s->ctk[0] != '}') {
+		printbuf_ctok(s);
+		s->nct = 0;
+		return;
+	}
+
 	switch(s->ctk[0]) {
 	case '*':
 		parse_ctl_x52(s);
@@ -413,6 +420,11 @@ void parse_ctl_tokens(struct cp_state *s)
 
 	case '#':
 		parse_ctl_x23(s);
+	break;
+
+	case '{':
+	case '}':
+		parse_ctl_x7bd(s);
 	break;
 	}
 
@@ -649,6 +661,37 @@ static void parse_ctl_x23(struct cp_state *s)
 		s->lflags ^= CL_LIST;
 	}
 
+}
+
+static void parse_ctl_x7bd(struct cp_state *s)
+{
+	if(s->nct != 3)
+		return;
+
+
+	if(s->ctk[0] == '{') {
+		if(GF(CG_NFO)) {
+			printbuf_ctok(s);
+			return;
+		}
+
+		if(s->nst > 0 || LF(CL_STR))
+			printbuf_str(s, "<tt>");
+		else
+			printbuf_str(s, "<pre>");
+	} else {
+		if(!GF(CG_NFO)) {
+			printbuf_ctok(s);
+			return;
+		}
+
+		if(LF(CL_STR))
+			printbuf_str(s, "</tt>");
+		else
+			printbuf_str(s, "</pre>");
+	}
+
+	s->gflags ^= CG_NFO;
 }
 
 /* Basic check to see if we're dealing with a URL */

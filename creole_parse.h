@@ -1,4 +1,3 @@
-#ifndef CREOLE_PARSE_H
 /*
 * Copyright 2014, carrotsrc.org
 *
@@ -14,6 +13,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
+#ifndef CREOLE_PARSE_H
 #define CREOLE_PARSE_H
 #include <stdio.h>
 #include <stdlib.h>

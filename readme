@@ -50,15 +50,14 @@ Current Compliance
 - Forced line break \\
 
 - Horizontal rules ----
-
+- Nowiki blocks and inline {{{ }}}
 
 Todo
 ====
 
 - Tables |=|
-- Nowiki {{{ }}}
 - Escape character ~
-- Place holder <<< >>
+- Place holder <<< >>>
 
 - No links in headers
 - Maintain current emphasis state in link description
