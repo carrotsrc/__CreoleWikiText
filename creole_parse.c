@@ -213,7 +213,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 
 	while((ch = line[i++]) != '\0') {
 
-		if( (ch>0x30  && ch < 0x5b) || (ch > 0x60 && ch < 0x7b) ) {
+		if( (ch>0x2a && ch<0x3a)  || (ch > 0x40 && ch < 0x5b) || (ch > 0x60 && ch < 0x7b) ) {
 			parse_str_tokens(ch, s);
 			continue;
 		}
@@ -327,9 +327,7 @@ void parse_ctl_tokens(struct cp_state *s)
 {
 	s->ctk[s->nct] = '\0';
 	if(s->ctk[0] != '=' && s->ctk[0] != '|' && ( LF(CL_HEADER) || (s->nct == 1 && LF(CL_STR)) ) ) {
-
 		printbuf_ctok(s);
-
 		s->nct = 0;
 		return;
 	}
