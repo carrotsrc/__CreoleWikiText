@@ -13,31 +13,16 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-#include "creole_parse.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "creole_def.h"
 
-#define LF(f) (s->lflags & (f))
-#define GF(f) (s->gflags & (f))
-
-#define TLF(f) s->lflags ^= f
-#define TGF(f) s->gflags ^= f
-#define CTOK(s, c) (s->ctok[s->nct++] = c)
-
-#define LS_UL 1
-#define LS_OL 2
-#define LSPOP(t) s->lsn--
-
-
-#define MAX_NESTED 32
 
 /* this is a list stack item
  * which is used for nesting
  * list types
  */
-struct cp_lsi {
-	unsigned short type;
-	unsigned short inc;
-};
-
 struct cp_state {
 	/* control tokens */
 	char *ctk;
@@ -64,35 +49,6 @@ struct cp_state {
 };
 
 
-void parse_line(char*, int, struct cp_state*);
-
-static void switch_ctl_tokens(char, struct cp_state*);
-static void parse_str_tokens(char, struct cp_state*);
-static void parse_ctl_tokens(struct cp_state*);
-
-static int check_url(const char *, unsigned int);
-
-static void ls_push(unsigned short, struct cp_state*);
-static void ls_pop(unsigned short, struct cp_state*);
-
-static void parse_ctl_x0a(struct cp_state*); /* \n */
-static void parse_ctl_x23(struct cp_state*); /* # */
-static void parse_ctl_x2d(struct cp_state*); /* - */
-static void parse_ctl_x2f(struct cp_state*); /* / */
-static void parse_ctl_x52(struct cp_state*); /* * */
-static void parse_ctl_x5b(struct cp_state*); /* [ */ 
-static void parse_ctl_x5c(struct cp_state*); /* [ */ 
-static void parse_ctl_x5d(struct cp_state*); /* ] */ 
-static void parse_ctl_x76(struct cp_state*); /* = */ 
-static void parse_ctl_x7bd(struct cp_state*); /* { } */ 
-static void parse_ctl_x7c(struct cp_state*); /* | */ 
-
-static void printbuf_str(struct cp_state*, char*);
-static void printbuf_ctok(struct cp_state*);
-static void printbuf_stok(struct cp_state*);
-static void printbuf_ch(struct cp_state*, char);
-
-static void realloc_buf(struct cp_state*);
 
 void realloc_buf(struct cp_state *s)
 {

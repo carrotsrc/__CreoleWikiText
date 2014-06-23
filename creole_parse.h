@@ -15,29 +15,6 @@
 */
 #ifndef CREOLE_PARSE_H
 #define CREOLE_PARSE_H
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#define CG_BOLD 1
-#define CG_ITALIC 2
-
-#define CG_UL 8
-#define CG_OL 16
-
-#define CG_NFO 128
-
-#define CL_CTL 1
-#define CL_STR 2
-#define CL_TRAIL 4
-
-#define CL_OPEN_HEADER 8
-#define CL_HEADER 16
-#define CL_LIST 32
-
-#define CL_AHREF 64
-#define CL_ATITLE 128
-
 char *creole_parse(char*, const char*, int);
 
 #endif

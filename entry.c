@@ -13,6 +13,8 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
+#include <stdio.h>
+#include <stdlib.h>
 #include "creole_parse.h"
 #define TEST_FILE "/home/charlie/development/c/creole/test2.cre"
 int main(int argc, char *argv[])
