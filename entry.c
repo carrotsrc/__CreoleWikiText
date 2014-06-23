@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "creole_parse.h"
-#define TEST_FILE "/home/charlie/development/c/creole/test2.cre"
+#define TEST_FILE "/home/charlie/development/c/creole/test.cre"
 int main(int argc, char *argv[])
 {
 	unsigned int sz = 0;

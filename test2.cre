@@ -7,4 +7,7 @@ No **Formatting** should //here//\\
 
 This will be {{{teletyped}}}
 This is an image: {{sunshine.png|This is alt data}} see it?
+=Header=
+
+This should be an image link [[http://www.wikipedia.org|{{wiki.png|alt text}} link text]]
 

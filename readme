@@ -7,7 +7,7 @@ Modified: 2014/06/20
 
 
 A parser that converts inputted creole formatted text blocks into HTML formatted text blocks.
-It functions as a state machine and tracks changes per line and per text block. It logically breaks the tect block into lines which it then processes individually.
+It functions as a state machine and tracks changes per line and per text block. It logically breaks the text block into lines which it then processes individually.
 
 There are two different kinds of token on a line:
 * Control tokens - these are reserved tokens for creole to use as formatters
@@ -24,12 +24,16 @@ As formatting is encountered, the machine's flags are toggled and untoggled. The
 * Global flags - these are for when formatting is toggled over multiple lines (multiple logical breaks)
 * Local flags - (or Line flags) these are for formatting that exists for the maximum duration of a line
 
+As a line is read the tokens are placed in a buffer depending on what kind of token it is (control or string); when a token is encountered that is not of the previously buffered tokens, it triggers the processing of the buffered tokens. Essentially what happens as it reads through is the machine will flip between parsing control tokens, to parsing string tokens, to control tokens, to string tokens etc. until the end of the line.
+
 Current Compliance
 ==================
 
 - Bold **
 - Italic //
 
+
+### headings have stopped working ###
 - Headings
 - Ignored emphasis on headings
 - Ignores trailing heading control tokens
@@ -38,7 +42,7 @@ Current Compliance
 - External links
 - Formatting on link description
 
-- Unordered Lists + Unordered lists
+- Unordered Lists + ordered lists
 - Nesting and mixing of lists
 - Space can be used or ommitted
 - If space is used, will allow for bold emphasis on first word of list item
@@ -50,8 +54,11 @@ Current Compliance
 - Forced line break \\
 
 - Horizontal rules ----
+
 - Nowiki blocks and inline {{{ }}}
+
 - Images {{ }}
+- Images in links
 
 Todo
 ====
