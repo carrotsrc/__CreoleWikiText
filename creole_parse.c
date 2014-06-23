@@ -299,7 +299,7 @@ void parse_str_tokens(char ch, struct cp_state *s)
 		}
 
 		if( GF(CG_UL) && !LF(CL_LIST) ) {
-			printbuf_str(s, "</ul>\n");
+			ls_pop(0, s);
 			s->gflags ^= CG_UL;
 		}
 			
@@ -414,6 +414,10 @@ void parse_ctl_tokens(struct cp_state *s)
 
 	case '\\':
 		parse_ctl_x5c(s);
+	break;
+
+	case '#':
+		parse_ctl_x23(s);
 	break;
 	}
 
@@ -627,26 +631,25 @@ void parse_ctl_x5c(struct cp_state *s)
 /* handle # */
 static void parse_ctl_x23(struct cp_state *s)
 {
-	if(GF(CG_OL) && LF(CL_CTL)) {
-		/* in OL mode and control mode */
+	if(GF(CG_UL) && LF(CL_CTL)) {
+		/* in UL mode and control mode */
 		if(s->inc_list < s->nct) {
-			s->inc_list = s->nct;
-			printbuf_str(s, "<ol>\n");
+			ls_push(LS_OL, s);
 		} else 
 		if(s->inc_list > s->nct) {
-			s->inc_list = s->nct;
-			printbuf_str(s, "</ol>\n");
+			ls_pop(LS_OL, s);
 		}
+		else
+			printbuf_str(s,"</li>\n");
 
 		s->lflags ^= CL_LIST;
 		printbuf_str(s,"<li>");
 	} else
 	if(!GF(CG_UL) && LF(CL_CTL) && s->nct == 1) {
-		/* NOT in string more OR OL mode and ntok = 1
+		/* NOT in string more OR UL mode and ntok = 1
 		 * so we must be starting an unordered list*/
-		s->gflags ^= CG_OL;
-		s->inc_list = s->nct;
-		printbuf_str(s, "<ol>\n");
+		s->gflags ^= CG_UL;
+		ls_push(LS_OL, s);
 		printbuf_str(s, "<li>");
 		s->lflags ^= CL_LIST;
 	}
