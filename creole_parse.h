@@ -16,5 +16,4 @@
 #ifndef CREOLE_PARSE_H
 #define CREOLE_PARSE_H
 char *creole_parse(char*, const char*, int);
-
 #endif

@@ -20,6 +20,9 @@
 #define CL_AHREF 64
 #define CL_ATITLE 128
 
+#define CL_ISRC 256
+#define CL_IALT 512
+
 #define LF(f) (s->lflags & (f))
 #define GF(f) (s->gflags & (f))
 
@@ -57,6 +60,9 @@ static void printbuf_str(struct cp_state*, char*);
 static void printbuf_ctok(struct cp_state*);
 static void printbuf_stok(struct cp_state*);
 static void printbuf_ch(struct cp_state*, char);
+
+static void parse_nowiki(struct cp_state*);
+static void parse_img(struct cp_state*);
 
 static void realloc_buf(struct cp_state*);
 

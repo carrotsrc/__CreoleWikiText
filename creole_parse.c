@@ -18,10 +18,9 @@
 #include <string.h>
 #include "creole_def.h"
 
-
-/* this is a list stack item
- * which is used for nesting
- * list types
+/*
+ * for managing the state of the
+ * parsing machine
  */
 struct cp_state {
 	/* control tokens */
@@ -556,8 +555,15 @@ void parse_ctl_x5d(struct cp_state *s)
 /* handle | */
 void parse_ctl_x7c(struct cp_state *s)
 {
-	if(!LF(CL_AHREF))
+	if(!LF(CL_AHREF|CL_ISRC))
 		printbuf_ctok(s);
+
+	if(LF(CL_ISRC)) {
+		printbuf_stok(s);
+		s->lflags ^= (CL_ISRC|CL_IALT);
+		printbuf_str(s, "\" alt=\"");
+		return;
+	}
 
 	s->lflags ^= CL_AHREF;
 	s->lflags ^= CL_ATITLE;
@@ -621,10 +627,19 @@ static void parse_ctl_x23(struct cp_state *s)
 
 static void parse_ctl_x7bd(struct cp_state *s)
 {
-	if(s->nct != 3)
-		return;
+	if(s->nct == 2)
+		parse_img(s);
+	else
+	if(s->nct == 3)
+		parse_nowiki(s);
+	else {
+		printbuf_ctok(s);
+	}
 
+}
 
+void parse_nowiki(struct cp_state *s)
+{
 	if(s->ctk[0] == '{') {
 		if(GF(CG_NFO)) {
 			printbuf_ctok(s);
@@ -648,6 +663,31 @@ static void parse_ctl_x7bd(struct cp_state *s)
 	}
 
 	s->gflags ^= CG_NFO;
+}
+
+void parse_img(struct cp_state *s)
+{
+	/* I'm HERE*/
+	if(s->ctk[0] == '{') {
+		if(LF(CL_IALT)) {
+			printbuf_ctok(s);
+			return;
+		}
+		s->lflags ^= CL_ISRC;
+		printbuf_str(s, "<img src=\"");
+	} else {
+		if(LF(CL_IALT))
+			s->lflags ^= CL_IALT;
+		else
+		if(LF(CL_ISRC))
+			s->lflags ^= CL_ISRC;
+		else {
+			printbuf_ctok(s);
+			return;
+		}
+
+		printbuf_str(s, "\" />");
+	}
 }
 
 /* Basic check to see if we're dealing with a URL */
