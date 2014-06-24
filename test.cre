@@ -1,49 +1,11 @@
 =Heading 1=
 ==Heading 2==
 ===Heading 3===
-
-=H1 //No Format//
-==H2 **No Formating**==
-===H3 No Trails======
-==[[NoLinks]]==
-==H2 == H2======
-
-this text is ///Italic// and this **Text
-is bold***
-
-***bold**
-//italic//
-
-horizonal-
-----
-
-not horizontal:
----
-
-not horizontal:
-abc----
-
-not horizontal - needs fixing:
-----hfhf
-
-this should be open-close italic ////
-this should be //**italic and bold**//
-this should - hypenate
-
-this should be \\\
-on a newly formatted line line
 * L1 1
 *L1 2
 ** **L2** 1
 ***L3 1
+#### O1
+#### O2
 ** L2 2
 *L1 3
-
-Links:
-[ No link]
-[[YellowLink]]
-this is a [[Link]] in text
-[[YellowLink|Foo bar]]
-[[YellowLink|Foo //bar//]]
-
-this should be a full link: [[http://www.wikipedia.org|**Wikipedia Website**]] &lt; -Click here

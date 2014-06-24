@@ -213,7 +213,7 @@ void parse_line(char *line, int len, struct cp_state *s)
 
 	while((ch = line[i++]) != '\0') {
 
-		if( (ch>0x2a && ch<0x3a)  || (ch > 0x40 && ch < 0x5b) || (ch > 0x60 && ch < 0x7b) ) {
+		if( (ch>0x2f && ch<0x3a)  || (ch > 0x40 && ch < 0x5b) || (ch > 0x60 && ch < 0x7b) ) {
 			parse_str_tokens(ch, s);
 			continue;
 		}
@@ -667,7 +667,6 @@ void parse_nowiki(struct cp_state *s)
 
 void parse_img(struct cp_state *s)
 {
-	/* I'm HERE*/
 	if(s->ctk[0] == '{') {
 		if(LF(CL_IALT)) {
 			printbuf_ctok(s);
