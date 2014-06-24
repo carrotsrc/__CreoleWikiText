@@ -340,7 +340,7 @@ void parse_ctl_tokens(struct cp_state *s)
 
 	switch(s->ctk[0]) {
 	case '*':
-		parse_ctl_x52(s);
+		parse_ctl_x2a(s);
 	break;
 
 	case '=':
@@ -389,7 +389,7 @@ void parse_ctl_tokens(struct cp_state *s)
  * this one is a pain because it deals with both
  * strong emphasis and unordered list
  * */
-void parse_ctl_x52(struct cp_state *s)
+void parse_ctl_x2a(struct cp_state *s)
 {
 	if(( LF(CL_STR) || !LF(CL_STR|CL_CTL) ) ||
 		(!GF(CG_UL) && LF(CL_CTL) && s->nct > 1) ) {

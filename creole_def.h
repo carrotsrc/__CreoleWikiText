@@ -46,9 +46,9 @@ static void ls_pop(unsigned short, struct cp_state*);
 
 static void parse_ctl_x0a(struct cp_state*); /* \n */
 static void parse_ctl_x23(struct cp_state*); /* # */
+static void parse_ctl_x2a(struct cp_state*); /* * */
 static void parse_ctl_x2d(struct cp_state*); /* - */
 static void parse_ctl_x2f(struct cp_state*); /* / */
-static void parse_ctl_x52(struct cp_state*); /* * */
 static void parse_ctl_x5b(struct cp_state*); /* [ */ 
 static void parse_ctl_x5c(struct cp_state*); /* [ */ 
 static void parse_ctl_x5d(struct cp_state*); /* ] */ 
